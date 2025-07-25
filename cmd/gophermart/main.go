@@ -1,6 +1,10 @@
 package main
 
-import "github.com/DimKa163/gophermart/app/gophermart"
+import (
+	"errors"
+	"github.com/DimKa163/gophermart/app/gophermart"
+	"net/http"
+)
 
 func main() {
 	var conf gophermart.Config
@@ -11,6 +15,9 @@ func main() {
 	}
 	server.Map()
 	if err := server.Run(); err != nil {
-		panic(err)
+		if !errors.Is(err, http.ErrServerClosed) {
+			panic(err)
+		}
+
 	}
 }

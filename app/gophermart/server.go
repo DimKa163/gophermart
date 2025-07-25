@@ -2,8 +2,13 @@ package gophermart
 
 import (
 	"context"
+	"github.com/DimKa163/gophermart/internal/shared/auth"
+	"github.com/DimKa163/gophermart/internal/user/application/login"
+	"github.com/DimKa163/gophermart/internal/user/application/register"
+	"github.com/DimKa163/gophermart/internal/user/infrastructure/persistence"
 	"github.com/DimKa163/gophermart/internal/user/interfaces/rest"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -20,12 +25,31 @@ type Server struct {
 }
 
 func New(conf Config) (*Server, error) {
+	pg, err := pgxpool.New(context.Background(), conf.Database)
+	if err != nil {
+		return nil, err
+	}
+	if err = persistence.Migrate(pg); err != nil {
+		return nil, err
+	}
 	router := gin.New()
 	router.Use(gin.Recovery())
+	uow := persistence.NewUnitOfWork(pg)
+	jwtBuilder := auth.NewJWTBuilder(auth.JWTBuilderConfig{
+		TokenExpiration: time.Minute * 5,
+		SecretKey:       []byte(conf.Secret),
+	})
+	registerHandler := register.New(uow)
+	loginHandler := login.New(uow, jwtBuilder)
 	return &Server{
 		Engine: router,
+		Server: &http.Server{
+			Addr:    conf.Addr,
+			Handler: router.Handler(),
+		},
 		ServiceContainer: &ServiceContainer{
-			userApi: rest.NewUserApi(),
+			userApi: rest.NewUserApi(registerHandler,
+				loginHandler),
 		},
 	}, nil
 }

@@ -10,7 +10,7 @@ func ParseFlags(config *gophermart.Config) {
 	flag.StringVar(&config.Addr, "a", ":8080", "The address to listen on")
 	flag.StringVar(&config.Database, "d", "", "The database to connect to")
 	flag.StringVar(&config.Accrual, "r", "", "Accrual service")
-
+	flag.StringVar(&config.Secret, "s", "secret", "Secret service")
 	if addrValue := os.Getenv("RUN_ADDRESS"); addrValue != "" {
 		config.Addr = addrValue
 	}
@@ -21,5 +21,9 @@ func ParseFlags(config *gophermart.Config) {
 
 	if accrualSystemaValue := os.Getenv("ACCRUAL_SYSTEM_ADDRESS"); accrualSystemaValue != "" {
 		config.Accrual = accrualSystemaValue
+	}
+
+	if secretValue := os.Getenv("SECRET_KEY"); secretValue != "" {
+		config.Secret = secretValue
 	}
 }

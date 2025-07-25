@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS UX_login
+
+DROP TABLE IF EXISTS public.users
