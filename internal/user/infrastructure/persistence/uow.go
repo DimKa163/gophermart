@@ -28,6 +28,8 @@ func (u *unitOfWork) UserRepository() repository.UserRepository {
 	return NewUserRepository(u.db)
 }
 
+func (u *unitOfWork) OrderRepository() repository.OrderRepository { return NewOrderRepository(u.db) }
+
 func NewUnitOfWork(db db.QueryExecutor) uow.UnitOfWork {
 	return &unitOfWork{
 		db: db,

@@ -1,0 +1,38 @@
+﻿@startuml
+'https://plantuml.com/class-diagram
+
+
+class User {
+    Int64 id
+    DateTime created_at
+    String login
+    String password
+}
+
+class Order {
+    Int64 id
+    String number
+    DateTime uploaded_at
+    OrderStatus status
+    Int64 user_id
+}
+
+enum OrderStatus {
+    NEW
+    PROCESSING
+    INVALID
+    PROCESSED
+}
+
+class BonusMovement {
+    Int64 user_id
+    BonusMovementType type
+    decimal amount
+}
+
+enum BonusMovementType {
+    ACCRUAL
+    WITHDRAWAL
+}
+
+@enduml

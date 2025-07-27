@@ -1,18 +1,20 @@
 package rest
 
 import (
-	"errors"
+	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/application/login"
+	"github.com/DimKa163/gophermart/internal/user/application/order"
 	"github.com/DimKa163/gophermart/internal/user/application/register"
 	"github.com/DimKa163/gophermart/internal/user/interfaces/contracts"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 )
 
 type UserApi interface {
 	Register(context *gin.Context)
 	Login(context *gin.Context)
-	AddOrder(context *gin.Context)
+	Upload(context *gin.Context)
 	GetOrders(context *gin.Context)
 	GetBalance(context *gin.Context)
 	Withdraw(context *gin.Context)
@@ -22,10 +24,19 @@ type UserApi interface {
 type userApi struct {
 	registerHandler *register.RegisterHandler
 	loginHandler    *login.LoginHandler
+	uploadHandler   *order.UploadOrderHandler
 }
 
-func NewUserApi(registerHandler *register.RegisterHandler, loginHandler *login.LoginHandler) UserApi {
-	return &userApi{registerHandler: registerHandler, loginHandler: loginHandler}
+func NewUserApi(
+	registerHandler *register.RegisterHandler,
+	loginHandler *login.LoginHandler,
+	uploadOrderHandler *order.UploadOrderHandler,
+) UserApi {
+	return &userApi{
+		registerHandler: registerHandler,
+		loginHandler:    loginHandler,
+		uploadHandler:   uploadOrderHandler,
+	}
 }
 
 func (u *userApi) Register(context *gin.Context) {
@@ -34,16 +45,20 @@ func (u *userApi) Register(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	id, err := u.registerHandler.Handle(context, &register.RegisterCommand{Login: user.Login, Password: user.Password})
+	result, err := u.registerHandler.Handle(context, &register.RegisterCommand{Login: user.Login, Password: user.Password})
 	if err != nil {
-		if errors.Is(err, register.ErrLoginAlreadyExists) {
-			context.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-			return
-		}
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	context.JSON(http.StatusOK, gin.H{"id": id})
+	switch result.Code {
+	case types.Created:
+		context.Header("Authorization", result.Payload)
+		context.Status(http.StatusOK)
+		break
+	case types.Duplicate:
+		context.JSON(http.StatusConflict, gin.H{"error": result.Error})
+		break
+	}
 }
 
 func (u *userApi) Login(context *gin.Context) {
@@ -52,25 +67,51 @@ func (u *userApi) Login(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	token, err := u.loginHandler.Handle(context, &login.LoginCommand{Login: user.Login})
+	result, err := u.loginHandler.Handle(context, &login.LoginCommand{Login: user.Login})
 	if err != nil {
-		if errors.Is(err, login.ErrInvalidPassword) {
-			context.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-			return
-		}
-		if errors.Is(err, login.ErrUserNotFound) {
-			context.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	context.JSON(http.StatusOK, gin.H{"token": token})
+	switch result.Code {
+	case types.Created:
+		context.Header("Authorization", result.Payload)
+		context.Status(http.StatusOK)
+		break
+	case types.Problem:
+		context.JSON(http.StatusUnauthorized, gin.H{"error": result.Error})
+		break
+	}
 }
 
-func (u *userApi) AddOrder(context *gin.Context) {
-	//TODO implement me
-	panic("implement me")
+func (u *userApi) Upload(context *gin.Context) {
+	body, err := context.GetRawData()
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	id, err := strconv.ParseInt(string(body), 10, 64)
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := u.uploadHandler.Handle(context, &order.UploadOrderCommand{Id: id})
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	switch result.Code {
+	case types.Created:
+		context.Status(http.StatusAccepted)
+		break
+	case types.NoChange:
+		context.Status(http.StatusOK)
+		break
+	case types.Problem:
+		context.JSON(http.StatusUnprocessableEntity, gin.H{"error": result.Error})
+	case types.Duplicate:
+		context.JSON(http.StatusConflict, gin.H{"error": result.Error})
+		break
+	}
 }
 
 func (u *userApi) GetOrders(context *gin.Context) {

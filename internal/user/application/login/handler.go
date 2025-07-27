@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/DimKa163/gophermart/internal/shared/auth"
+	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -14,19 +15,26 @@ var ErrInvalidPassword = errors.New("invalid password")
 
 type LoginHandler struct {
 	unitOfWork uow.UnitOfWork
-	jwtBuilder *auth.JWTBuilder
+	jwtBuilder *auth.JWT
+}
+type LoginCommand struct {
+	Login    string
+	Password string
 }
 
-func New(unitOfWork uow.UnitOfWork, builder *auth.JWTBuilder) *LoginHandler {
+func New(unitOfWork uow.UnitOfWork, builder *auth.JWT) *LoginHandler {
 	return &LoginHandler{unitOfWork: unitOfWork, jwtBuilder: builder}
 }
 
-func (h *LoginHandler) Handle(ctx context.Context, command *LoginCommand) (any, error) {
+func (h *LoginHandler) Handle(ctx context.Context, command *LoginCommand) (*types.AppResult[string], error) {
 	rep := h.unitOfWork.UserRepository()
 	user, err := rep.Get(ctx, command.Login)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrUserNotFound
+			return &types.AppResult[string]{
+				Code:  types.Problem,
+				Error: err,
+			}, nil
 		}
 		return nil, err
 	}
@@ -41,5 +49,8 @@ func (h *LoginHandler) Handle(ctx context.Context, command *LoginCommand) (any, 
 	if err != nil {
 		return nil, err
 	}
-	return token, nil
+	return &types.AppResult[string]{
+		Code:    types.Created,
+		Payload: token,
+	}, nil
 }

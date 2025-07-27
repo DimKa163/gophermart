@@ -2,49 +2,49 @@ package model
 
 import (
 	"errors"
+	"github.com/shopspring/decimal"
+	"strconv"
 	"time"
 	"unicode"
+)
+
+type OrderStatus int
+
+const (
+	OrderStatusNEW OrderStatus = iota
+	OrderStatusPROCESSING
+	OrderStatusINVALID
+	OrderStatusPROCESSED
 )
 
 type Order struct {
 	OrderID    OrderID
 	UploadedAt time.Time
-}
-
-func NewOrder(orderID string) (*Order, error) {
-	id, err := NewOrderID(orderID)
-	if err != nil {
-		return nil, err
-	}
-	return &Order{
-		OrderID:    id,
-		UploadedAt: time.Now(),
-	}, nil
+	Status     OrderStatus
+	UserID     int64
+	Accrual    decimal.Decimal
 }
 
 var ErrOrderID = errors.New("order code not valid")
 
 var DefaultOrderID = OrderID{
-	Value: "",
+	Value: 0,
 }
 
 type OrderID struct {
-	Value string
+	Value int64
 }
 
-func (id OrderID) String() string {
-	return id.Value
-}
-
-func NewOrderID(value string) (OrderID, error) {
+func NewOrderID(value int64) (OrderID, error) {
 	if err := validate(value); err != nil {
 		return DefaultOrderID, err
 	}
 	return OrderID{value}, nil
 }
 
-func validate(value string) error {
-	num := value
+func validate(value int64) error {
+	v := strconv.FormatInt(value, 10)
+	num := v
 	var sum int
 	var double bool
 	for i := len(num) - 1; i >= 0; i-- {
@@ -52,7 +52,6 @@ func validate(value string) error {
 		if !unicode.IsNumber(r) {
 			return ErrOrderID
 		}
-
 		d := int(r - '0')
 		if double {
 			d *= 2
@@ -67,4 +66,8 @@ func validate(value string) error {
 		return ErrOrderID
 	}
 	return nil
+}
+
+func (id *OrderID) String() string {
+	return strconv.FormatInt(id.Value, 10)
 }
