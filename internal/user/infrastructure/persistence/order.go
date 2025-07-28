@@ -3,9 +3,9 @@ package persistence
 import (
 	"context"
 	"github.com/DimKa163/gophermart/internal/shared/db"
+	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/domain/repository"
-	"github.com/jackc/pgx/v5/pgtype"
 	"time"
 )
 
@@ -17,13 +17,19 @@ func (o *orderRepository) Get(ctx context.Context, id model.OrderID) (*model.Ord
 	sql := "SELECT id, uploaded_at, user_id, status, accrual FROM orders WHERE id=$1"
 	var order model.Order
 	var orderId int64
-	var accrual pgtype.Numeric
+	var accrual *string
 	if err := o.db.QueryRow(ctx, sql, id.Value).Scan(&orderId, &order.UploadedAt, &order.UserID, &order.Status, &accrual); err != nil {
 		return nil, err
 	}
-	if err := accrual.Scan(accrual); err != nil {
-		return nil, err
+	var acc types.Decimal
+	var err error
+	if accrual != nil {
+		acc, err = types.NewDecimalFromString(*accrual)
+		if err != nil {
+			return nil, err
+		}
 	}
+	order.Accrual = &acc
 	order.OrderID = model.OrderID{Value: orderId}
 	return &order, nil
 }
@@ -39,13 +45,20 @@ func (o *orderRepository) GetAll(ctx context.Context, userId int64) ([]*model.Or
 	for rows.Next() {
 		var orderId int64
 		var order model.Order
-		var accrual pgtype.Numeric
+		var accrual *string
 		if err := rows.Scan(&orderId, &order.UploadedAt, &order.UserID, &order.Status, &accrual); err != nil {
 			return nil, err
 		}
-		if err := accrual.Scan(order.Accrual); err != nil {
-			return nil, err
+		order.OrderID = model.OrderID{Value: orderId}
+		var acc types.Decimal
+		if accrual != nil {
+			acc, err = types.NewDecimalFromString(*accrual)
+			if err != nil {
+				return nil, err
+			}
 		}
+
+		order.Accrual = &acc
 		orders = append(orders, &order)
 	}
 	return orders, nil

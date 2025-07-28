@@ -2,7 +2,7 @@ package model
 
 import (
 	"errors"
-	"github.com/shopspring/decimal"
+	"github.com/DimKa163/gophermart/internal/shared/types"
 	"strconv"
 	"time"
 	"unicode"
@@ -17,12 +17,16 @@ const (
 	OrderStatusPROCESSED
 )
 
+func (s OrderStatus) String() string {
+	return [...]string{"NEW", "PROCESSING", "INVALID", "PROCESSED"}[s]
+}
+
 type Order struct {
 	OrderID    OrderID
-	UploadedAt time.Time
+	UploadedAt *time.Time
 	Status     OrderStatus
 	UserID     int64
-	Accrual    decimal.Decimal
+	Accrual    *types.Decimal
 }
 
 var ErrOrderID = errors.New("order code not valid")

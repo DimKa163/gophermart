@@ -41,6 +41,7 @@ func New(conf Config) (*Server, error) {
 	registerHandler := register.New(uow, jwtBuilder)
 	loginHandler := login.New(uow, jwtBuilder)
 	uploadOrderHandler := order.NewUploadOrderHandler(uow)
+	orderQueryHandler := order.NewOrderQueryHandler(uow)
 	router := gin.New()
 	router.Use(gin.Recovery())
 	return &Server{
@@ -51,7 +52,9 @@ func New(conf Config) (*Server, error) {
 		},
 		ServiceContainer: &ServiceContainer{
 			userApi: rest.NewUserApi(registerHandler,
-				loginHandler, uploadOrderHandler),
+				loginHandler,
+				uploadOrderHandler,
+				orderQueryHandler),
 			jwtBuilder: jwtBuilder,
 			pgPool:     pg,
 		},
@@ -71,7 +74,7 @@ func (s *Server) Map() {
 			userGroup.POST("/orders", userApi.Upload)
 			balanceGroup := userGroup.Group("/balance")
 			{
-				balanceGroup.GET("/", userApi.GetBalance)
+				balanceGroup.GET("", userApi.GetBalance)
 				balanceGroup.POST("/withdraw", userApi.Withdraw)
 			}
 		}

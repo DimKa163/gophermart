@@ -1,10 +1,13 @@
 package contracts
 
-import "time"
+import (
+	"github.com/DimKa163/gophermart/internal/shared/types"
+	"time"
+)
 
-type OrderResponse struct {
-	Number     string     `json:"number"`
-	Status     string     `json:"status"`
-	Accrual    *float32   `json:"accrual,omitempty"`
-	UploadedAt *time.Time `json:"uploaded_at,omitempty"`
+type OrderItem struct {
+	Number     string         `json:"number"`
+	Status     string         `json:"status"`
+	Accrual    *types.Decimal `json:"accrual,omitempty"`
+	UploadedAt *time.Time     `json:"uploaded_at,omitempty"`
 }

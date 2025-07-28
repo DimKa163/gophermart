@@ -8,20 +8,20 @@ import (
 func TestOrderID(t *testing.T) {
 	cases := []struct {
 		name        string
-		value       string
+		value       int64
 		expected    OrderID
 		expectedErr error
 	}{
 		{
 			name:        "valid",
-			value:       "9278923470",
-			expected:    OrderID{"9278923470"},
+			value:       9278923470,
+			expected:    OrderID{9278923470},
 			expectedErr: nil,
 		},
 		{
 			name:        "invalid",
-			value:       "12345",
-			expected:    OrderID{""},
+			value:       12345,
+			expected:    OrderID{0},
 			expectedErr: ErrOrderID,
 		},
 	}

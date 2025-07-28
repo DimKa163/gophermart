@@ -22,20 +22,23 @@ type UserApi interface {
 }
 
 type userApi struct {
-	registerHandler *register.RegisterHandler
-	loginHandler    *login.LoginHandler
-	uploadHandler   *order.UploadOrderHandler
+	registerHandler   *register.RegisterHandler
+	loginHandler      *login.LoginHandler
+	uploadHandler     *order.UploadOrderHandler
+	orderQueryHandler *order.OrderQueryHandler
 }
 
 func NewUserApi(
 	registerHandler *register.RegisterHandler,
 	loginHandler *login.LoginHandler,
 	uploadOrderHandler *order.UploadOrderHandler,
+	orderQueryHandler *order.OrderQueryHandler,
 ) UserApi {
 	return &userApi{
-		registerHandler: registerHandler,
-		loginHandler:    loginHandler,
-		uploadHandler:   uploadOrderHandler,
+		registerHandler:   registerHandler,
+		loginHandler:      loginHandler,
+		uploadHandler:     uploadOrderHandler,
+		orderQueryHandler: orderQueryHandler,
 	}
 }
 
@@ -115,8 +118,29 @@ func (u *userApi) Upload(context *gin.Context) {
 }
 
 func (u *userApi) GetOrders(context *gin.Context) {
-	//TODO implement me
-	panic("implement me")
+	result, err := u.orderQueryHandler.Handle(context, order.OrderQuery{})
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	switch result.Code {
+	case types.NoChange:
+		if len(result.Payload) == 0 {
+			context.Status(http.StatusNoContent)
+			return
+		}
+		orderItems := make([]contracts.OrderItem, len(result.Payload))
+		for i, item := range result.Payload {
+			orderItems[i] = contracts.OrderItem{
+				Number:     item.OrderID.String(),
+				Accrual:    item.Accrual,
+				Status:     item.Status.String(),
+				UploadedAt: item.UploadedAt,
+			}
+		}
+		context.JSON(http.StatusOK, orderItems)
+		break
+	}
 }
 
 func (u *userApi) GetBalance(context *gin.Context) {
