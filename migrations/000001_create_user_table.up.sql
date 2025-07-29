@@ -1,8 +1,8 @@
 CREATE TABLE IF NOT EXISTS users(
     id BIGSERIAL PRIMARY KEY,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     login VARCHAR(25) NOT NULL,
     password BYTEA NOT NULL
 );
 
-CREATE UNIQUE INDEX UX_login ON public.users(login);
+CREATE UNIQUE INDEX users_login_uix ON public.users(login);

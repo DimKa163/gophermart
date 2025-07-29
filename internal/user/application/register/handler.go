@@ -53,6 +53,13 @@ func (h *RegisterHandler) Handle(ctx context.Context, command *RegisterCommand) 
 		return nil, err
 	}
 
+	balanceRepository := tuw.BonusBalanceRepository()
+	err = balanceRepository.Insert(ctx, &model.BonusBalance{UserId: id})
+	if err != nil {
+		_ = tuw.Rollback(ctx)
+		return nil, err
+	}
+
 	token, err := h.jwtService.BuildJWT(id)
 	if err != nil {
 		_ = tuw.Rollback(ctx)

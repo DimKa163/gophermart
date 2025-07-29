@@ -1,7 +1,9 @@
 package model
 
 import (
+	"database/sql/driver"
 	"errors"
+	"github.com/DimKa163/gophermart/internal/shared/types"
 	"time"
 )
 
@@ -14,20 +16,33 @@ const (
 	WITHDRAWAL
 )
 
-func (s BonusMovementType) String() string {
-	return [...]string{"ACCRUAL", "WITHDRAWAL"}[s]
+func (s *BonusMovementType) String() string {
+	return [...]string{"ACCRUAL", "WITHDRAWAL"}[*s]
+}
+
+func (s *BonusMovementType) Scan(value interface{}) error {
+	switch value.(type) {
+	case int:
+		*s = BonusMovementType(value.(int))
+		break
+	}
+	return nil
+}
+
+func (s *BonusMovementType) Value() (driver.Value, error) {
+	return int64(*s), nil
 }
 
 type BonusMovement struct {
 	UserID    int64
 	CreatedAt time.Time
 	Type      BonusMovementType
-	Amount    float64
-	OrderID   *OrderID
+	Amount    types.Decimal
+	OrderID   OrderID
 }
 
-func NewBonusMovement(userID int64, tt BonusMovementType, amount float64, orderId *OrderID) (*BonusMovement, error) {
-	if amount < 0 {
+func NewBonusMovement(userID int64, tt BonusMovementType, amount types.Decimal, orderId OrderID) (*BonusMovement, error) {
+	if amount.IsNegative() {
 		return nil, ErrBonusMovement
 	}
 	return &BonusMovement{

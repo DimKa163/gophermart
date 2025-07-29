@@ -1,12 +1,12 @@
 CREATE TABLE IF NOT EXISTS orders
 (
     id BIGSERIAL PRIMARY KEY,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    uploaded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     user_id BIGSERIAL REFERENCES users(id),
     status INT NULL,
     accrual DECIMAL(10, 2)
 );
 
-CREATE INDEX IF NOT EXISTS IX_USERID ON orders(user_id ASC);
+CREATE INDEX IF NOT EXISTS orders_user_id_ix ON orders(user_id ASC);
 
-CREATE INDEX IF NOT EXISTS IX_STATUS ON orders(status ASC);
+CREATE INDEX IF NOT EXISTS orders_status_ix ON orders(status ASC);

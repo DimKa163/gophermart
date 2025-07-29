@@ -1,6 +1,8 @@
 package contracts
 
+import "github.com/DimKa163/gophermart/internal/shared/types"
+
 type BalanceResponse struct {
-	Current  float64 `json:"current"`
-	Withdraw float64 `json:"withdraw"`
+	Current   types.Decimal `json:"current"`
+	Withdrawn types.Decimal `json:"withdrawn"`
 }

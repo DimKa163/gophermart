@@ -1,7 +1,9 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/DimKa163/gophermart/internal/shared/types"
 	"strconv"
 	"time"
@@ -46,6 +48,26 @@ func NewOrderID(value int64) (OrderID, error) {
 	return OrderID{value}, nil
 }
 
+func (id *OrderID) MarshalJSON() ([]byte, error) {
+	return []byte(id.String()), nil
+}
+
+func (id *OrderID) UnmarshalJSON(data []byte) error {
+	var strVal string
+	if err := json.Unmarshal(data, &strVal); err != nil {
+		return fmt.Errorf("OrderID.UnmarshalJSON: %w", err)
+	}
+	val, err := strconv.ParseInt(strVal, 10, 64)
+	if err != nil {
+		return fmt.Errorf("OrderID.UnmarshalJSON: %w", err)
+	}
+	err = validate(val)
+	if err != nil {
+		return fmt.Errorf("OrderID.UnmarshalJSON: %w", err)
+	}
+	id.Value = val
+	return nil
+}
 func validate(value int64) error {
 	v := strconv.FormatInt(value, 10)
 	num := v

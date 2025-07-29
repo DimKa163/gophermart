@@ -3,9 +3,11 @@ package gophermart
 import (
 	"context"
 	"github.com/DimKa163/gophermart/internal/shared/auth"
+	"github.com/DimKa163/gophermart/internal/user/application/balance"
 	"github.com/DimKa163/gophermart/internal/user/application/login"
 	"github.com/DimKa163/gophermart/internal/user/application/order"
 	"github.com/DimKa163/gophermart/internal/user/application/register"
+	"github.com/DimKa163/gophermart/internal/user/application/withdrawal"
 	"github.com/DimKa163/gophermart/internal/user/infrastructure/persistence"
 	"github.com/DimKa163/gophermart/internal/user/interfaces/middleware"
 	"github.com/DimKa163/gophermart/internal/user/interfaces/rest"
@@ -42,6 +44,9 @@ func New(conf Config) (*Server, error) {
 	loginHandler := login.New(uow, jwtBuilder)
 	uploadOrderHandler := order.NewUploadOrderHandler(uow)
 	orderQueryHandler := order.NewOrderQueryHandler(uow)
+	balanceHandler := balance.NewBalanceQueryHandler(uow)
+	withdrawHandler := balance.NewWithdrawHandler(uow)
+	withdrawalQueryHandler := withdrawal.NewWithdrawalQueryHandler(uow)
 	router := gin.New()
 	router.Use(gin.Recovery())
 	return &Server{
@@ -54,7 +59,10 @@ func New(conf Config) (*Server, error) {
 			userApi: rest.NewUserApi(registerHandler,
 				loginHandler,
 				uploadOrderHandler,
-				orderQueryHandler),
+				orderQueryHandler,
+				balanceHandler,
+				withdrawHandler,
+				withdrawalQueryHandler),
 			jwtBuilder: jwtBuilder,
 			pgPool:     pg,
 		},

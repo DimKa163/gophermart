@@ -1,11 +1,28 @@
 package types
 
-import "github.com/shopspring/decimal"
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"fmt"
+	"github.com/shopspring/decimal"
+)
 
-type Decimal decimal.Decimal
+type Decimal struct {
+	decimal.Decimal
+}
 
-func (d Decimal) MarshalJSON() ([]byte, error) {
-	return []byte(decimal.Decimal(d).String()), nil
+func (d *Decimal) MarshalJSON() ([]byte, error) {
+	return []byte(d.String()), nil
+}
+
+func (d *Decimal) UnmarshalJSON(data []byte) error {
+	var strVal float64
+	if err := json.Unmarshal(data, &strVal); err != nil {
+		return fmt.Errorf("Decimal.UnmarshalJSON: invalid input: %s", string(data))
+	}
+	dec := decimal.NewFromFloat(strVal)
+	d.Decimal = dec
+	return nil
 }
 
 func NewDecimalFromString(str string) (Decimal, error) {
@@ -13,5 +30,31 @@ func NewDecimalFromString(str string) (Decimal, error) {
 	if err != nil {
 		return Decimal{}, err
 	}
-	return Decimal(dec), nil
+	return Decimal{dec}, nil
+}
+
+func (d *Decimal) Cmp(a Decimal) int {
+	return d.Decimal.Cmp(a.Decimal)
+}
+
+func (d *Decimal) Add(a Decimal) Decimal {
+	return Decimal{d.Decimal.Add(a.Decimal)}
+}
+
+func (d *Decimal) Sub(a Decimal) Decimal {
+	return Decimal{d.Decimal.Sub(a.Decimal)}
+}
+
+func (d *Decimal) IsNegative() bool {
+	return d.Decimal.IsNegative()
+}
+
+func (d *Decimal) IsPositive() bool {
+	return d.Decimal.IsPositive()
+}
+func (d *Decimal) IsZero() bool {
+	return d.Decimal.IsZero()
+}
+func (d *Decimal) Value() (driver.Value, error) {
+	return d.Decimal.String(), nil
 }

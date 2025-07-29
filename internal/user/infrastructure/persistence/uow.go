@@ -23,13 +23,16 @@ func (u *unitOfWork) Begin(ctx context.Context) (uow.TxUnitOfWork, error) {
 		db: tx,
 	}, nil
 }
-
+func (u *unitOfWork) BonusBalanceRepository() repository.BonusBalanceRepository {
+	return NewBonusBalanceRepository(u.db)
+}
+func (u *unitOfWork) BonusMovementRepository() repository.BonusMovementRepository {
+	return NewBonusMovementRepository(u.db)
+}
 func (u *unitOfWork) UserRepository() repository.UserRepository {
 	return NewUserRepository(u.db)
 }
-
 func (u *unitOfWork) OrderRepository() repository.OrderRepository { return NewOrderRepository(u.db) }
-
 func NewUnitOfWork(db db.QueryExecutor) uow.UnitOfWork {
 	return &unitOfWork{
 		db: db,

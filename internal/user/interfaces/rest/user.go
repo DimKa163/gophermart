@@ -1,10 +1,13 @@
 package rest
 
 import (
+	"errors"
 	"github.com/DimKa163/gophermart/internal/shared/types"
+	"github.com/DimKa163/gophermart/internal/user/application/balance"
 	"github.com/DimKa163/gophermart/internal/user/application/login"
 	"github.com/DimKa163/gophermart/internal/user/application/order"
 	"github.com/DimKa163/gophermart/internal/user/application/register"
+	"github.com/DimKa163/gophermart/internal/user/application/withdrawal"
 	"github.com/DimKa163/gophermart/internal/user/interfaces/contracts"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -22,10 +25,13 @@ type UserApi interface {
 }
 
 type userApi struct {
-	registerHandler   *register.RegisterHandler
-	loginHandler      *login.LoginHandler
-	uploadHandler     *order.UploadOrderHandler
-	orderQueryHandler *order.OrderQueryHandler
+	registerHandler        *register.RegisterHandler
+	loginHandler           *login.LoginHandler
+	uploadHandler          *order.UploadOrderHandler
+	orderQueryHandler      *order.OrderQueryHandler
+	bonusBalanceHandler    *balance.BalanceQueryHandler
+	withdrawHandler        *balance.WithdrawHandler
+	withdrawalQueryHandler *withdrawal.WithdrawalQueryHandler
 }
 
 func NewUserApi(
@@ -33,12 +39,18 @@ func NewUserApi(
 	loginHandler *login.LoginHandler,
 	uploadOrderHandler *order.UploadOrderHandler,
 	orderQueryHandler *order.OrderQueryHandler,
+	bonusBalanceHandler *balance.BalanceQueryHandler,
+	withdrawHandler *balance.WithdrawHandler,
+	withdrawalQueryHandler *withdrawal.WithdrawalQueryHandler,
 ) UserApi {
 	return &userApi{
-		registerHandler:   registerHandler,
-		loginHandler:      loginHandler,
-		uploadHandler:     uploadOrderHandler,
-		orderQueryHandler: orderQueryHandler,
+		registerHandler:        registerHandler,
+		loginHandler:           loginHandler,
+		uploadHandler:          uploadOrderHandler,
+		orderQueryHandler:      orderQueryHandler,
+		bonusBalanceHandler:    bonusBalanceHandler,
+		withdrawHandler:        withdrawHandler,
+		withdrawalQueryHandler: withdrawalQueryHandler,
 	}
 }
 
@@ -144,16 +156,64 @@ func (u *userApi) GetOrders(context *gin.Context) {
 }
 
 func (u *userApi) GetBalance(context *gin.Context) {
-	//TODO implement me
-	panic("implement me")
+	result, err := u.bonusBalanceHandler.Handle(context, &balance.BalanceQuery{})
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	switch result.Code {
+	case types.NoChange:
+		context.JSON(http.StatusOK, contracts.BalanceResponse{Current: result.Payload.Current, Withdrawn: result.Payload.Withdrawn})
+	}
 }
 
 func (u *userApi) Withdraw(context *gin.Context) {
-	//TODO implement me
-	panic("implement me")
+	var body contracts.WithdrawRequest
+	if err := context.ShouldBind(&body); err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := u.withdrawHandler.Handle(context, &balance.WithdrawCommand{
+		OrderID: body.OrderID,
+		Sum:     body.Sum,
+	})
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	switch result.Code {
+	case types.Created:
+		context.Status(http.StatusOK)
+		return
+	case types.Problem:
+		if errors.Is(result.Error, balance.ErrNegativeBalance) {
+			context.JSON(http.StatusPaymentRequired, gin.H{"error": result.Error.Error()})
+			return
+		}
+		if errors.Is(result.Error, balance.ErrWrongOrder) {
+			context.JSON(http.StatusUnprocessableEntity, gin.H{"error": result.Error.Error()})
+			return
+		}
+	}
 }
 
 func (u *userApi) GetWithdrawals(context *gin.Context) {
-	//TODO implement me
-	panic("implement me")
+	result, err := u.withdrawalQueryHandler.Handle(context, &withdrawal.WithdrawalQuery{})
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	switch result.Code {
+	case types.NoChange:
+		response := make([]contracts.WithdrawResponse, len(result.Payload))
+		for i, item := range result.Payload {
+			response[i] = contracts.WithdrawResponse{
+				OrderID:     item.OrderID,
+				Sum:         item.Amount,
+				ProcessedAt: item.CreatedAt,
+			}
+		}
+		context.JSON(http.StatusOK, response)
+		break
+	}
 }
