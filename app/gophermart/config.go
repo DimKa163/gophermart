@@ -5,4 +5,5 @@ type Config struct {
 	Database string
 	Accrual  string
 	Secret   string
+	LogLevel string
 }

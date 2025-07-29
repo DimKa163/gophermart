@@ -3,6 +3,7 @@ package gophermart
 import (
 	"context"
 	"github.com/DimKa163/gophermart/internal/shared/auth"
+	"github.com/DimKa163/gophermart/internal/shared/logging"
 	"github.com/DimKa163/gophermart/internal/user/application/balance"
 	"github.com/DimKa163/gophermart/internal/user/application/login"
 	"github.com/DimKa163/gophermart/internal/user/application/order"
@@ -25,6 +26,7 @@ type ServiceContainer struct {
 	pgPool     *pgxpool.Pool
 }
 type Server struct {
+	Config
 	*gin.Engine
 	*http.Server
 	*ServiceContainer
@@ -48,8 +50,9 @@ func New(conf Config) (*Server, error) {
 	withdrawHandler := balance.NewWithdrawHandler(uow)
 	withdrawalQueryHandler := withdrawal.NewWithdrawalQueryHandler(uow)
 	router := gin.New()
-	router.Use(gin.Recovery())
+
 	return &Server{
+		Config: conf,
 		Engine: router,
 		Server: &http.Server{
 			Addr:    conf.Addr,
@@ -69,7 +72,13 @@ func New(conf Config) (*Server, error) {
 	}, nil
 }
 
+func (s *Server) AddLogging() error {
+	return logging.Initialize(s.LogLevel)
+}
+
 func (s *Server) Map() {
+	s.Use(gin.Recovery())
+	s.Use(middleware.Logging())
 	userGroup := s.Group("api/user")
 	{
 		userApi := s.userApi

@@ -11,6 +11,9 @@ func ParseFlags(config *gophermart.Config) {
 	flag.StringVar(&config.Database, "d", "", "The database to connect to")
 	flag.StringVar(&config.Accrual, "r", "", "Accrual service")
 	flag.StringVar(&config.Secret, "s", "secret", "Secret service")
+	flag.StringVar(&config.Secret, "l", "info", "Log level")
+	flag.Parse()
+
 	if addrValue := os.Getenv("RUN_ADDRESS"); addrValue != "" {
 		config.Addr = addrValue
 	}
@@ -25,5 +28,9 @@ func ParseFlags(config *gophermart.Config) {
 
 	if secretValue := os.Getenv("SECRET_KEY"); secretValue != "" {
 		config.Secret = secretValue
+	}
+
+	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
+		config.LogLevel = envLogLevel
 	}
 }
