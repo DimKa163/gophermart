@@ -8,6 +8,12 @@ import (
 
 var Log = zap.NewNop()
 
+type LoggerID string
+
+const (
+	loggerID LoggerID = "loggerID"
+)
+
 func Initialize(level string) error {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
@@ -24,7 +30,7 @@ func Initialize(level string) error {
 }
 
 func Logger(ctx context.Context) *zap.Logger {
-	logger, ok := ctx.Value("logger").(*zap.Logger)
+	logger, ok := ctx.Value(loggerID).(*zap.Logger)
 	if !ok {
 		logger = Log
 	}
@@ -35,9 +41,9 @@ func SetLogger(ctx context.Context, l *zap.Logger) context.Context {
 	//чёртов gin.Context
 	gCtx, ok := ctx.(*gin.Context)
 	if !ok {
-		ctx = context.WithValue(ctx, "logger", l)
+		ctx = context.WithValue(ctx, loggerID, l)
 		return ctx
 	}
-	gCtx.Set("logger", l)
+	gCtx.Set(string(loggerID), l)
 	return gCtx
 }
