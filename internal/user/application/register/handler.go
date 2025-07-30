@@ -9,7 +9,7 @@ import (
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
 )
 
-var ErrLoginAlreadyExists = errors.New("User already exists")
+var ErrLoginAlreadyExists = errors.New("user already exists")
 
 type RegisterHandler struct {
 	unitOfWork  uow.UnitOfWork

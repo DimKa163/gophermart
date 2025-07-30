@@ -13,13 +13,13 @@ type bonusBalanceRepository struct {
 	db db.QueryExecutor
 }
 
-func (b *bonusBalanceRepository) GetForUpdate(ctx context.Context, userId int64) (*model.BonusBalance, error) {
+func (b *bonusBalanceRepository) GetForUpdate(ctx context.Context, userID int64) (*model.BonusBalance, error) {
 	sql := "SELECT user_id, created_at, current, withdrawn FROM bonus_balances WHERE user_id = $1 FOR UPDATE"
 	var balance model.BonusBalance
 	var err error
 	var currentStr string
 	var withdrawnStr string
-	if err = b.db.QueryRow(ctx, sql, userId).Scan(&balance.UserId, &balance.CreatedAt, &currentStr, &withdrawnStr); err != nil {
+	if err = b.db.QueryRow(ctx, sql, userID).Scan(&balance.UserId, &balance.CreatedAt, &currentStr, &withdrawnStr); err != nil {
 		return nil, err
 	}
 	balance.Current, err = types.NewDecimalFromString(currentStr)
@@ -33,13 +33,13 @@ func (b *bonusBalanceRepository) GetForUpdate(ctx context.Context, userId int64)
 	return &balance, nil
 }
 
-func (b *bonusBalanceRepository) Get(ctx context.Context, userId int64) (*model.BonusBalance, error) {
+func (b *bonusBalanceRepository) Get(ctx context.Context, userID int64) (*model.BonusBalance, error) {
 	sql := "SELECT user_id, created_at, current, withdrawn FROM bonus_balances WHERE user_id = $1"
 	var balance model.BonusBalance
 	var err error
 	var currentStr string
 	var withdrawnStr string
-	if err = b.db.QueryRow(ctx, sql, userId).Scan(&balance.UserId, &balance.CreatedAt, &currentStr, &withdrawnStr); err != nil {
+	if err = b.db.QueryRow(ctx, sql, userID).Scan(&balance.UserId, &balance.CreatedAt, &currentStr, &withdrawnStr); err != nil {
 		return nil, err
 	}
 	balance.Current, err = types.NewDecimalFromString(currentStr)

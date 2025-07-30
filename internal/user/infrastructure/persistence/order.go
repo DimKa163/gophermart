@@ -16,9 +16,9 @@ type orderRepository struct {
 func (o *orderRepository) Get(ctx context.Context, id model.OrderID) (*model.Order, error) {
 	sql := "SELECT id, uploaded_at, user_id, status, accrual FROM orders WHERE id=$1"
 	var order model.Order
-	var orderId int64
+	var orderID int64
 	var accrual *string
-	if err := o.db.QueryRow(ctx, sql, id.Value).Scan(&orderId, &order.UploadedAt, &order.UserID, &order.Status, &accrual); err != nil {
+	if err := o.db.QueryRow(ctx, sql, id.Value).Scan(&orderID, &order.UploadedAt, &order.UserID, &order.Status, &accrual); err != nil {
 		return nil, err
 	}
 	var acc types.Decimal
@@ -30,26 +30,26 @@ func (o *orderRepository) Get(ctx context.Context, id model.OrderID) (*model.Ord
 		}
 	}
 	order.Accrual = &acc
-	order.OrderID = model.OrderID{Value: orderId}
+	order.OrderID = model.OrderID{Value: orderID}
 	return &order, nil
 }
 
-func (o *orderRepository) GetAll(ctx context.Context, userId int64) ([]*model.Order, error) {
+func (o *orderRepository) GetAll(ctx context.Context, userID int64) ([]*model.Order, error) {
 	sql := "SELECT id, uploaded_at, user_id, status, accrual FROM orders WHERE user_id=$1"
 	var orders []*model.Order
-	rows, err := o.db.Query(ctx, sql, userId)
+	rows, err := o.db.Query(ctx, sql, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var orderId int64
+		var orderID int64
 		var order model.Order
 		var accrual *string
-		if err := rows.Scan(&orderId, &order.UploadedAt, &order.UserID, &order.Status, &accrual); err != nil {
+		if err := rows.Scan(&orderID, &order.UploadedAt, &order.UserID, &order.Status, &accrual); err != nil {
 			return nil, err
 		}
-		order.OrderID = model.OrderID{Value: orderId}
+		order.OrderID = model.OrderID{Value: orderID}
 		var acc types.Decimal
 		if accrual != nil {
 			acc, err = types.NewDecimalFromString(*accrual)

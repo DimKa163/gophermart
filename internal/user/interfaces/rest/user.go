@@ -15,7 +15,7 @@ import (
 	"net/http"
 )
 
-type UserApi interface {
+type UserAPI interface {
 	Register(context *gin.Context)
 	Login(context *gin.Context)
 	Upload(context *gin.Context)
@@ -43,7 +43,7 @@ func NewUserApi(
 	bonusBalanceHandler *balance.BalanceQueryHandler,
 	withdrawHandler *balance.WithdrawHandler,
 	withdrawalQueryHandler *withdrawal.WithdrawalQueryHandler,
-) UserApi {
+) UserAPI {
 	return &userApi{
 		registerHandler:        registerHandler,
 		loginHandler:           loginHandler,

@@ -21,7 +21,7 @@ import (
 )
 
 type ServiceContainer struct {
-	userApi     rest.UserApi
+	userAPI     rest.UserAPI
 	authService auth.AuthService
 	pgPool      *pgxpool.Pool
 }
@@ -59,7 +59,7 @@ func New(conf Config) (*Server, error) {
 			Handler: router.Handler(),
 		},
 		ServiceContainer: &ServiceContainer{
-			userApi: rest.NewUserApi(registerHandler,
+			userAPI: rest.NewUserApi(registerHandler,
 				loginHandler,
 				uploadOrderHandler,
 				orderQueryHandler,
@@ -81,18 +81,18 @@ func (s *Server) Map() {
 	s.Use(middleware.Logging())
 	userGroup := s.Group("api/user")
 	{
-		userApi := s.userApi
-		userGroup.POST("/register", userApi.Register)
-		userGroup.POST("/login", userApi.Login)
+		userAPI := s.userAPI
+		userGroup.POST("/register", userAPI.Register)
+		userGroup.POST("/login", userAPI.Login)
 		userGroup.Use(middleware.Auth(s.authService))
 		{
-			userGroup.GET("/orders", userApi.GetOrders)
-			userGroup.GET("/withdrawals", userApi.GetWithdrawals)
-			userGroup.POST("/orders", userApi.Upload)
+			userGroup.GET("/orders", userAPI.GetOrders)
+			userGroup.GET("/withdrawals", userAPI.GetWithdrawals)
+			userGroup.POST("/orders", userAPI.Upload)
 			balanceGroup := userGroup.Group("/balance")
 			{
-				balanceGroup.GET("", userApi.GetBalance)
-				balanceGroup.POST("/withdraw", userApi.Withdraw)
+				balanceGroup.GET("", userAPI.GetBalance)
+				balanceGroup.POST("/withdraw", userAPI.Withdraw)
 			}
 		}
 	}
