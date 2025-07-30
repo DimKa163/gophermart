@@ -15,12 +15,12 @@ type BonusBalance struct {
 	Withdrawn types.Decimal
 }
 
-func NewBonusBalance(userId int64, current, withdrawn types.Decimal) (*BonusBalance, error) {
+func NewBonusBalance(userID int64, current, withdrawn types.Decimal) (*BonusBalance, error) {
 	if current.IsNegative() || withdrawn.IsNegative() {
 		return nil, ErrBonusBalance
 	}
 	return &BonusBalance{
-		UserId:    userId,
+		UserId:    userID,
 		Current:   current,
 		Withdrawn: withdrawn,
 	}, nil
