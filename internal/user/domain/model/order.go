@@ -63,6 +63,9 @@ func (id *OrderID) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("OrderID.UnmarshalJSON: %w", err)
 	}
 	val, err := strconv.ParseInt(strVal, 10, 64)
+	if err != nil {
+		return err
+	}
 	id.Value = val
 	return nil
 }
