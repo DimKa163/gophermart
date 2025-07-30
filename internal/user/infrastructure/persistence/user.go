@@ -14,9 +14,15 @@ type userRepository struct {
 }
 
 func (u *userRepository) Get(ctx context.Context, login string) (*model.User, error) {
-	sql := "SELECT id, created_at, login, password FROM users WHERE login = $1"
+	sql := "SELECT id, created_at, login, password, salt FROM users WHERE login = $1"
 	var entity model.User
-	if err := entity.Scan(u.db.QueryRow(ctx, sql, login)); err != nil {
+	if err := u.db.QueryRow(ctx, sql, login).Scan(
+		&entity.ID,
+		&entity.CreatedAt,
+		&entity.Login,
+		&entity.Password,
+		&entity.Salt,
+	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, err
 		}
@@ -25,9 +31,16 @@ func (u *userRepository) Get(ctx context.Context, login string) (*model.User, er
 }
 
 func (u *userRepository) Insert(ctx context.Context, user *model.User) (int64, error) {
-	sql := "INSERT INTO users (created_at, login, password) VALUES ($1, $2, $3) RETURNING id"
+	sql := "INSERT INTO users (created_at, login, password, salt) VALUES ($1, $2, $3, $4) RETURNING id"
 	var id int64
-	if err := u.db.QueryRow(ctx, sql, user.CreatedAt, user.Login, user.Password).Scan(&id); err != nil {
+	if err := u.db.QueryRow(
+		ctx,
+		sql,
+		user.CreatedAt,
+		user.Login,
+		user.Password,
+		user.Salt,
+	).Scan(&id); err != nil {
 		return -1, err
 	}
 	return id, nil

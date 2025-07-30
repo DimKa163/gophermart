@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"github.com/DimKa163/gophermart/internal/shared/logging"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -15,19 +14,18 @@ func Logging() gin.HandlerFunc {
 			zap.String("method", c.Request.Method),
 			zap.String("path", c.Request.URL.Path),
 		)
-
+		logger := logging.Log.With(zap.String("method", c.Request.Method),
+			zap.String("path", c.Request.URL.Path))
+		logging.SetLogger(c, logger)
 		startTime := time.Now()
 		c.Next()
 		elapsed := time.Since(startTime)
-		userID, ok := c.Value("userId").(int64)
-		if !ok {
-			userID = -1
-		}
-		logging.Log.Info("Processed HTTP request", zap.Int("status", c.Writer.Status()),
+		log := logging.Logger(c)
+		logger = log.With(zap.Int("status", c.Writer.Status()),
 			zap.Int("size", c.Writer.Size()),
 			zap.Duration("elapsed", elapsed),
 			zap.String("method", c.Request.Method),
-			zap.String("path", c.Request.URL.Path),
-			zap.String("userId", fmt.Sprintf("%d", userID)))
+			zap.String("path", c.Request.URL.Path))
+		logger.Info("Processed HTTP request")
 	}
 }

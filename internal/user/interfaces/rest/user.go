@@ -2,6 +2,7 @@ package rest
 
 import (
 	"errors"
+	"github.com/DimKa163/gophermart/internal/shared/logging"
 	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/application/balance"
 	"github.com/DimKa163/gophermart/internal/user/application/login"
@@ -10,8 +11,8 @@ import (
 	"github.com/DimKa163/gophermart/internal/user/application/withdrawal"
 	"github.com/DimKa163/gophermart/internal/user/interfaces/contracts"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"net/http"
-	"strconv"
 )
 
 type UserApi interface {
@@ -55,13 +56,16 @@ func NewUserApi(
 }
 
 func (u *userApi) Register(context *gin.Context) {
+	logger := logging.Logger(context)
 	var user contracts.User
 	if err := context.ShouldBind(&user); err != nil {
+		logger.Error("Error reading body", zap.Error(err))
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	result, err := u.registerHandler.Handle(context, &register.RegisterCommand{Login: user.Login, Password: user.Password})
 	if err != nil {
+		logger.Error("Unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -71,19 +75,23 @@ func (u *userApi) Register(context *gin.Context) {
 		context.Status(http.StatusOK)
 		break
 	case types.Duplicate:
+		logger.Error("Error occurred", zap.Error(result.Error))
 		context.JSON(http.StatusConflict, gin.H{"error": result.Error})
 		break
 	}
 }
 
 func (u *userApi) Login(context *gin.Context) {
+	logger := logging.Logger(context)
 	var user contracts.User
 	if err := context.ShouldBind(&user); err != nil {
+		logger.Error("Error reading body", zap.Error(err))
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	result, err := u.loginHandler.Handle(context, &login.LoginCommand{Login: user.Login})
+	result, err := u.loginHandler.Handle(context, &login.LoginCommand{Login: user.Login, Password: user.Password})
 	if err != nil {
+		logger.Error("Unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -93,24 +101,23 @@ func (u *userApi) Login(context *gin.Context) {
 		context.Status(http.StatusOK)
 		break
 	case types.Problem:
-		context.JSON(http.StatusUnauthorized, gin.H{"error": result.Error})
+		logger.Error("Error occurred", zap.Error(err))
+		context.JSON(http.StatusUnauthorized, gin.H{"error": result.Error.Error()})
 		break
 	}
 }
 
 func (u *userApi) Upload(context *gin.Context) {
+	logger := logging.Logger(context)
 	body, err := context.GetRawData()
 	if err != nil {
+		logger.Error("Error reading body", zap.Error(err))
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	id, err := strconv.ParseInt(string(body), 10, 64)
+	result, err := u.uploadHandler.Handle(context, &order.UploadOrderCommand{Id: string(body)})
 	if err != nil {
-		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	result, err := u.uploadHandler.Handle(context, &order.UploadOrderCommand{Id: id})
-	if err != nil {
+		logger.Error("Unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -122,16 +129,20 @@ func (u *userApi) Upload(context *gin.Context) {
 		context.Status(http.StatusOK)
 		break
 	case types.Problem:
+		logger.Error("Error occurred", zap.Error(result.Error))
 		context.JSON(http.StatusUnprocessableEntity, gin.H{"error": result.Error})
 	case types.Duplicate:
+		logger.Error("Error occurred", zap.Error(result.Error))
 		context.JSON(http.StatusConflict, gin.H{"error": result.Error})
 		break
 	}
 }
 
 func (u *userApi) GetOrders(context *gin.Context) {
-	result, err := u.orderQueryHandler.Handle(context, order.OrderQuery{})
+	logger := logging.Logger(context)
+	result, err := u.orderQueryHandler.Handle(context, &order.OrderQuery{})
 	if err != nil {
+		logger.Error("Unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -156,8 +167,10 @@ func (u *userApi) GetOrders(context *gin.Context) {
 }
 
 func (u *userApi) GetBalance(context *gin.Context) {
+	logger := logging.Logger(context)
 	result, err := u.bonusBalanceHandler.Handle(context, &balance.BalanceQuery{})
 	if err != nil {
+		logger.Error("Unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -168,8 +181,10 @@ func (u *userApi) GetBalance(context *gin.Context) {
 }
 
 func (u *userApi) Withdraw(context *gin.Context) {
+	logger := logging.Logger(context)
 	var body contracts.WithdrawRequest
 	if err := context.ShouldBind(&body); err != nil {
+		logger.Error("Error reading body", zap.Error(err))
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -178,6 +193,7 @@ func (u *userApi) Withdraw(context *gin.Context) {
 		Sum:     body.Sum,
 	})
 	if err != nil {
+		logger.Error("Unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -186,6 +202,7 @@ func (u *userApi) Withdraw(context *gin.Context) {
 		context.Status(http.StatusOK)
 		return
 	case types.Problem:
+		logger.Error("Error occurred", zap.Error(result.Error))
 		if errors.Is(result.Error, balance.ErrNegativeBalance) {
 			context.JSON(http.StatusPaymentRequired, gin.H{"error": result.Error.Error()})
 			return
@@ -198,13 +215,19 @@ func (u *userApi) Withdraw(context *gin.Context) {
 }
 
 func (u *userApi) GetWithdrawals(context *gin.Context) {
+	logger := logging.Logger(context)
 	result, err := u.withdrawalQueryHandler.Handle(context, &withdrawal.WithdrawalQuery{})
 	if err != nil {
+		logger.Error("Unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	switch result.Code {
 	case types.NoChange:
+		if len(result.Payload) == 0 {
+			context.Status(http.StatusNoContent)
+			return
+		}
 		response := make([]contracts.WithdrawResponse, len(result.Payload))
 		for i, item := range result.Payload {
 			response[i] = contracts.WithdrawResponse{

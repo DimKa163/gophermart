@@ -21,9 +21,9 @@ import (
 )
 
 type ServiceContainer struct {
-	userApi    rest.UserApi
-	jwtBuilder *auth.JWT
-	pgPool     *pgxpool.Pool
+	userApi     rest.UserApi
+	authService auth.AuthService
+	pgPool      *pgxpool.Pool
 }
 type Server struct {
 	Config
@@ -38,19 +38,19 @@ func New(conf Config) (*Server, error) {
 		return nil, err
 	}
 	uow := persistence.NewUnitOfWork(pg)
-	jwtBuilder := auth.NewJWTBuilder(auth.JWTConfig{
+	jwtAuth := auth.NewJWTBuilder(auth.JWTConfig{
 		TokenExpiration: time.Minute * 5,
 		SecretKey:       []byte(conf.Secret),
 	})
-	registerHandler := register.New(uow, jwtBuilder)
-	loginHandler := login.New(uow, jwtBuilder)
+	authService := auth.NewAuthService(conf.Argon, jwtAuth)
+	registerHandler := register.New(uow, authService)
+	loginHandler := login.New(uow, authService)
 	uploadOrderHandler := order.NewUploadOrderHandler(uow)
 	orderQueryHandler := order.NewOrderQueryHandler(uow)
 	balanceHandler := balance.NewBalanceQueryHandler(uow)
 	withdrawHandler := balance.NewWithdrawHandler(uow)
 	withdrawalQueryHandler := withdrawal.NewWithdrawalQueryHandler(uow)
 	router := gin.New()
-
 	return &Server{
 		Config: conf,
 		Engine: router,
@@ -66,8 +66,8 @@ func New(conf Config) (*Server, error) {
 				balanceHandler,
 				withdrawHandler,
 				withdrawalQueryHandler),
-			jwtBuilder: jwtBuilder,
-			pgPool:     pg,
+			authService: authService,
+			pgPool:      pg,
 		},
 	}, nil
 }
@@ -84,7 +84,7 @@ func (s *Server) Map() {
 		userApi := s.userApi
 		userGroup.POST("/register", userApi.Register)
 		userGroup.POST("/login", userApi.Login)
-		userGroup.Use(middleware.Auth(s.jwtBuilder))
+		userGroup.Use(middleware.Auth(s.authService))
 		{
 			userGroup.GET("/orders", userApi.GetOrders)
 			userGroup.GET("/withdrawals", userApi.GetWithdrawals)

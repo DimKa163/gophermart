@@ -41,11 +41,12 @@ type OrderID struct {
 	Value int64
 }
 
-func NewOrderID(value int64) (OrderID, error) {
+func NewOrderID(value string) (OrderID, error) {
 	if err := validate(value); err != nil {
 		return DefaultOrderID, err
 	}
-	return OrderID{value}, nil
+	v, _ := strconv.ParseInt(value, 10, 64)
+	return OrderID{Value: v}, nil
 }
 
 func (id *OrderID) MarshalJSON() ([]byte, error) {
@@ -57,20 +58,16 @@ func (id *OrderID) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &strVal); err != nil {
 		return fmt.Errorf("OrderID.UnmarshalJSON: %w", err)
 	}
+	err := validate(strVal)
+	if err != nil {
+		return fmt.Errorf("OrderID.UnmarshalJSON: %w", err)
+	}
 	val, err := strconv.ParseInt(strVal, 10, 64)
-	if err != nil {
-		return fmt.Errorf("OrderID.UnmarshalJSON: %w", err)
-	}
-	err = validate(val)
-	if err != nil {
-		return fmt.Errorf("OrderID.UnmarshalJSON: %w", err)
-	}
 	id.Value = val
 	return nil
 }
-func validate(value int64) error {
-	v := strconv.FormatInt(value, 10)
-	num := v
+func validate(value string) error {
+	num := value
 	var sum int
 	var double bool
 	for i := len(num) - 1; i >= 0; i-- {
