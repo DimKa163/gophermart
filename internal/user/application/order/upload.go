@@ -15,7 +15,7 @@ import (
 var ErrOrderConflict = errors.New("order conflict")
 
 type UploadOrderCommand struct {
-	Id string
+	ID string
 }
 
 type UploadOrderHandler struct {
@@ -27,7 +27,7 @@ func NewUploadOrderHandler(unitOfWork uow.UnitOfWork) *UploadOrderHandler {
 }
 
 func (handler *UploadOrderHandler) Handle(ctx context.Context, command *UploadOrderCommand) (*types.AppResult[any], error) {
-	orderID, err := model.NewOrderID(command.Id)
+	orderID, err := model.NewOrderID(command.ID)
 	logger := logging.Logger(ctx).With(zap.String("orderId", orderID.String()))
 	ctx = logging.SetLogger(ctx, logger)
 	if err != nil {

@@ -59,7 +59,7 @@ func New(conf Config) (*Server, error) {
 			Handler: router.Handler(),
 		},
 		ServiceContainer: &ServiceContainer{
-			userAPI: rest.NewUserApi(registerHandler,
+			userAPI: rest.NewUserAPI(registerHandler,
 				loginHandler,
 				uploadOrderHandler,
 				orderQueryHandler,

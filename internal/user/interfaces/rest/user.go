@@ -25,7 +25,7 @@ type UserAPI interface {
 	GetWithdrawals(context *gin.Context)
 }
 
-type userApi struct {
+type userAPI struct {
 	registerHandler        *register.RegisterHandler
 	loginHandler           *login.LoginHandler
 	uploadHandler          *order.UploadOrderHandler
@@ -35,7 +35,7 @@ type userApi struct {
 	withdrawalQueryHandler *withdrawal.WithdrawalQueryHandler
 }
 
-func NewUserApi(
+func NewUserAPI(
 	registerHandler *register.RegisterHandler,
 	loginHandler *login.LoginHandler,
 	uploadOrderHandler *order.UploadOrderHandler,
@@ -44,7 +44,7 @@ func NewUserApi(
 	withdrawHandler *balance.WithdrawHandler,
 	withdrawalQueryHandler *withdrawal.WithdrawalQueryHandler,
 ) UserAPI {
-	return &userApi{
+	return &userAPI{
 		registerHandler:        registerHandler,
 		loginHandler:           loginHandler,
 		uploadHandler:          uploadOrderHandler,
@@ -55,7 +55,7 @@ func NewUserApi(
 	}
 }
 
-func (u *userApi) Register(context *gin.Context) {
+func (u *userAPI) Register(context *gin.Context) {
 	logger := logging.Logger(context)
 	var user contracts.User
 	if err := context.ShouldBind(&user); err != nil {
@@ -73,15 +73,13 @@ func (u *userApi) Register(context *gin.Context) {
 	case types.Created:
 		context.Header("Authorization", result.Payload)
 		context.Status(http.StatusOK)
-		break
 	case types.Duplicate:
 		logger.Error("Error occurred", zap.Error(result.Error))
 		context.JSON(http.StatusConflict, gin.H{"error": result.Error})
-		break
 	}
 }
 
-func (u *userApi) Login(context *gin.Context) {
+func (u *userAPI) Login(context *gin.Context) {
 	logger := logging.Logger(context)
 	var user contracts.User
 	if err := context.ShouldBind(&user); err != nil {
@@ -99,15 +97,13 @@ func (u *userApi) Login(context *gin.Context) {
 	case types.Created:
 		context.Header("Authorization", result.Payload)
 		context.Status(http.StatusOK)
-		break
 	case types.Problem:
 		logger.Error("Error occurred", zap.Error(err))
 		context.JSON(http.StatusUnauthorized, gin.H{"error": result.Error.Error()})
-		break
 	}
 }
 
-func (u *userApi) Upload(context *gin.Context) {
+func (u *userAPI) Upload(context *gin.Context) {
 	logger := logging.Logger(context)
 	body, err := context.GetRawData()
 	if err != nil {
@@ -115,7 +111,7 @@ func (u *userApi) Upload(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	result, err := u.uploadHandler.Handle(context, &order.UploadOrderCommand{Id: string(body)})
+	result, err := u.uploadHandler.Handle(context, &order.UploadOrderCommand{ID: string(body)})
 	if err != nil {
 		logger.Error("Unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -124,21 +120,18 @@ func (u *userApi) Upload(context *gin.Context) {
 	switch result.Code {
 	case types.Created:
 		context.Status(http.StatusAccepted)
-		break
 	case types.NoChange:
 		context.Status(http.StatusOK)
-		break
 	case types.Problem:
 		logger.Error("Error occurred", zap.Error(result.Error))
 		context.JSON(http.StatusUnprocessableEntity, gin.H{"error": result.Error})
 	case types.Duplicate:
 		logger.Error("Error occurred", zap.Error(result.Error))
 		context.JSON(http.StatusConflict, gin.H{"error": result.Error})
-		break
 	}
 }
 
-func (u *userApi) GetOrders(context *gin.Context) {
+func (u *userAPI) GetOrders(context *gin.Context) {
 	logger := logging.Logger(context)
 	result, err := u.orderQueryHandler.Handle(context, &order.OrderQuery{})
 	if err != nil {
@@ -162,11 +155,10 @@ func (u *userApi) GetOrders(context *gin.Context) {
 			}
 		}
 		context.JSON(http.StatusOK, orderItems)
-		break
 	}
 }
 
-func (u *userApi) GetBalance(context *gin.Context) {
+func (u *userAPI) GetBalance(context *gin.Context) {
 	logger := logging.Logger(context)
 	result, err := u.bonusBalanceHandler.Handle(context, &balance.BalanceQuery{})
 	if err != nil {
@@ -180,7 +172,7 @@ func (u *userApi) GetBalance(context *gin.Context) {
 	}
 }
 
-func (u *userApi) Withdraw(context *gin.Context) {
+func (u *userAPI) Withdraw(context *gin.Context) {
 	logger := logging.Logger(context)
 	var body contracts.WithdrawRequest
 	if err := context.ShouldBind(&body); err != nil {
@@ -214,7 +206,7 @@ func (u *userApi) Withdraw(context *gin.Context) {
 	}
 }
 
-func (u *userApi) GetWithdrawals(context *gin.Context) {
+func (u *userAPI) GetWithdrawals(context *gin.Context) {
 	logger := logging.Logger(context)
 	result, err := u.withdrawalQueryHandler.Handle(context, &withdrawal.WithdrawalQuery{})
 	if err != nil {
@@ -237,6 +229,5 @@ func (u *userApi) GetWithdrawals(context *gin.Context) {
 			}
 		}
 		context.JSON(http.StatusOK, response)
-		break
 	}
 }

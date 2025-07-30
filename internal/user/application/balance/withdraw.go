@@ -10,9 +10,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-var ErrNegativeBalance = errors.New("Not enough balance")
+var ErrNegativeBalance = errors.New("not enough balance")
 
-var ErrWrongOrder = errors.New("Wrong order")
+var ErrWrongOrder = errors.New("wrong order")
 
 type WithdrawCommand struct {
 	OrderID model.OrderID `json:"order_id"`
