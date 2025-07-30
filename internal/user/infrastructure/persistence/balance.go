@@ -19,7 +19,7 @@ func (b *bonusBalanceRepository) GetForUpdate(ctx context.Context, userID int64)
 	var err error
 	var currentStr string
 	var withdrawnStr string
-	if err = b.db.QueryRow(ctx, sql, userID).Scan(&balance.UserId, &balance.CreatedAt, &currentStr, &withdrawnStr); err != nil {
+	if err = b.db.QueryRow(ctx, sql, userID).Scan(&balance.UserID, &balance.CreatedAt, &currentStr, &withdrawnStr); err != nil {
 		return nil, err
 	}
 	balance.Current, err = types.NewDecimalFromString(currentStr)
@@ -39,7 +39,7 @@ func (b *bonusBalanceRepository) Get(ctx context.Context, userID int64) (*model.
 	var err error
 	var currentStr string
 	var withdrawnStr string
-	if err = b.db.QueryRow(ctx, sql, userID).Scan(&balance.UserId, &balance.CreatedAt, &currentStr, &withdrawnStr); err != nil {
+	if err = b.db.QueryRow(ctx, sql, userID).Scan(&balance.UserID, &balance.CreatedAt, &currentStr, &withdrawnStr); err != nil {
 		return nil, err
 	}
 	balance.Current, err = types.NewDecimalFromString(currentStr)
@@ -55,7 +55,7 @@ func (b *bonusBalanceRepository) Get(ctx context.Context, userID int64) (*model.
 
 func (b *bonusBalanceRepository) Insert(ctx context.Context, bonus *model.BonusBalance) error {
 	sql := "INSERT INTO bonus_balances (user_id, created_at, current, withdrawn) VALUES ($1, $2, $3, $4)"
-	if _, err := b.db.Exec(ctx, sql, bonus.UserId, time.Now(), bonus.Current, bonus.Withdrawn); err != nil {
+	if _, err := b.db.Exec(ctx, sql, bonus.UserID, time.Now(), bonus.Current, bonus.Withdrawn); err != nil {
 		return err
 	}
 	return nil
@@ -63,7 +63,7 @@ func (b *bonusBalanceRepository) Insert(ctx context.Context, bonus *model.BonusB
 
 func (b *bonusBalanceRepository) Update(ctx context.Context, bonus *model.BonusBalance) error {
 	sql := "UPDATE bonus_balances SET current = $1, withdrawn = $2 WHERE user_id = $3"
-	if _, err := b.db.Exec(ctx, sql, bonus.Current, bonus.Withdrawn, bonus.UserId); err != nil {
+	if _, err := b.db.Exec(ctx, sql, bonus.Current, bonus.Withdrawn, bonus.UserID); err != nil {
 		return err
 	}
 	return nil

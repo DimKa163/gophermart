@@ -53,7 +53,7 @@ func (h *RegisterHandler) Handle(ctx context.Context, command *RegisterCommand) 
 	}
 
 	balanceRepository := tuw.BonusBalanceRepository()
-	err = balanceRepository.Insert(ctx, &model.BonusBalance{UserId: id})
+	err = balanceRepository.Insert(ctx, &model.BonusBalance{UserID: id})
 	if err != nil {
 		_ = tuw.Rollback(ctx)
 		return nil, err

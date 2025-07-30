@@ -20,15 +20,6 @@ func (s *BonusMovementType) String() string {
 	return [...]string{"ACCRUAL", "WITHDRAWAL"}[*s]
 }
 
-func (s *BonusMovementType) Scan(value interface{}) error {
-	switch value.(type) {
-	case int:
-		*s = BonusMovementType(value.(int))
-		break
-	}
-	return nil
-}
-
 func (s *BonusMovementType) Value() (driver.Value, error) {
 	return int64(*s), nil
 }

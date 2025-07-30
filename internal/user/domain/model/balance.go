@@ -9,7 +9,7 @@ import (
 var ErrBonusBalance = errors.New("invalid bonus balance")
 
 type BonusBalance struct {
-	UserId    int64
+	UserID    int64
 	CreatedAt time.Time
 	Current   types.Decimal
 	Withdrawn types.Decimal
@@ -20,7 +20,7 @@ func NewBonusBalance(userID int64, current, withdrawn types.Decimal) (*BonusBala
 		return nil, ErrBonusBalance
 	}
 	return &BonusBalance{
-		UserId:    userID,
+		UserID:    userID,
 		Current:   current,
 		Withdrawn: withdrawn,
 	}, nil
