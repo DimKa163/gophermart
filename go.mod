@@ -1,6 +1,6 @@
 module github.com/DimKa163/gophermart
 
-go 1.24.2
+go 1.23.11
 
 require (
 	github.com/bytedance/sonic v1.11.6 // indirect
