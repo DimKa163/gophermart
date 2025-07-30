@@ -3,6 +3,7 @@ package gophermart
 import (
 	"context"
 	"github.com/DimKa163/gophermart/internal/shared/auth"
+	"github.com/DimKa163/gophermart/internal/shared/logging"
 	"github.com/DimKa163/gophermart/internal/user/application/balance"
 	"github.com/DimKa163/gophermart/internal/user/application/login"
 	"github.com/DimKa163/gophermart/internal/user/application/order"
@@ -20,11 +21,12 @@ import (
 )
 
 type ServiceContainer struct {
-	userApi    rest.UserApi
-	jwtBuilder *auth.JWT
-	pgPool     *pgxpool.Pool
+	userAPI     rest.UserAPI
+	authService auth.AuthService
+	pgPool      *pgxpool.Pool
 }
 type Server struct {
+	Config
 	*gin.Engine
 	*http.Server
 	*ServiceContainer
@@ -36,54 +38,61 @@ func New(conf Config) (*Server, error) {
 		return nil, err
 	}
 	uow := persistence.NewUnitOfWork(pg)
-	jwtBuilder := auth.NewJWTBuilder(auth.JWTConfig{
+	jwtAuth := auth.NewJWTBuilder(auth.JWTConfig{
 		TokenExpiration: time.Minute * 5,
 		SecretKey:       []byte(conf.Secret),
 	})
-	registerHandler := register.New(uow, jwtBuilder)
-	loginHandler := login.New(uow, jwtBuilder)
+	authService := auth.NewAuthService(conf.Argon, jwtAuth)
+	registerHandler := register.New(uow, authService)
+	loginHandler := login.New(uow, authService)
 	uploadOrderHandler := order.NewUploadOrderHandler(uow)
 	orderQueryHandler := order.NewOrderQueryHandler(uow)
 	balanceHandler := balance.NewBalanceQueryHandler(uow)
 	withdrawHandler := balance.NewWithdrawHandler(uow)
 	withdrawalQueryHandler := withdrawal.NewWithdrawalQueryHandler(uow)
 	router := gin.New()
-	router.Use(gin.Recovery())
 	return &Server{
+		Config: conf,
 		Engine: router,
 		Server: &http.Server{
 			Addr:    conf.Addr,
 			Handler: router.Handler(),
 		},
 		ServiceContainer: &ServiceContainer{
-			userApi: rest.NewUserApi(registerHandler,
+			userAPI: rest.NewUserAPI(registerHandler,
 				loginHandler,
 				uploadOrderHandler,
 				orderQueryHandler,
 				balanceHandler,
 				withdrawHandler,
 				withdrawalQueryHandler),
-			jwtBuilder: jwtBuilder,
-			pgPool:     pg,
+			authService: authService,
+			pgPool:      pg,
 		},
 	}, nil
 }
 
+func (s *Server) AddLogging() error {
+	return logging.Initialize(s.LogLevel)
+}
+
 func (s *Server) Map() {
+	s.Use(gin.Recovery())
+	s.Use(middleware.Logging())
 	userGroup := s.Group("api/user")
 	{
-		userApi := s.userApi
-		userGroup.POST("/register", userApi.Register)
-		userGroup.POST("/login", userApi.Login)
-		userGroup.Use(middleware.Auth(s.jwtBuilder))
+		userAPI := s.userAPI
+		userGroup.POST("/register", userAPI.Register)
+		userGroup.POST("/login", userAPI.Login)
+		userGroup.Use(middleware.Auth(s.authService))
 		{
-			userGroup.GET("/orders", userApi.GetOrders)
-			userGroup.GET("/withdrawals", userApi.GetWithdrawals)
-			userGroup.POST("/orders", userApi.Upload)
+			userGroup.GET("/orders", userAPI.GetOrders)
+			userGroup.GET("/withdrawals", userAPI.GetWithdrawals)
+			userGroup.POST("/orders", userAPI.Upload)
 			balanceGroup := userGroup.Group("/balance")
 			{
-				balanceGroup.GET("", userApi.GetBalance)
-				balanceGroup.POST("/withdraw", userApi.Withdraw)
+				balanceGroup.GET("", userAPI.GetBalance)
+				balanceGroup.POST("/withdraw", userAPI.Withdraw)
 			}
 		}
 	}

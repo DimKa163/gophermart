@@ -2,7 +2,7 @@ package withdrawal
 
 import (
 	"context"
-	"fmt"
+	"github.com/DimKa163/gophermart/internal/shared/auth"
 	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
@@ -19,9 +19,9 @@ func NewWithdrawalQueryHandler(uow uow.UnitOfWork) *WithdrawalQueryHandler {
 }
 
 func (w *WithdrawalQueryHandler) Handle(ctx context.Context, _ *WithdrawalQuery) (*types.AppResult[[]*model.BonusMovement], error) {
-	userID, ok := ctx.Value("userId").(int64)
-	if !ok {
-		return nil, fmt.Errorf("userId not found in context")
+	userID, err := auth.User(ctx)
+	if err != nil {
+		return nil, err
 	}
 	rep := w.uow.BonusMovementRepository()
 	t := model.WITHDRAWAL

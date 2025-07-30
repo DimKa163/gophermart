@@ -3,16 +3,16 @@ package balance
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/DimKa163/gophermart/internal/shared/auth"
 	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
 	"github.com/jackc/pgx/v5"
 )
 
-var ErrNegativeBalance = errors.New("Not enough balance")
+var ErrNegativeBalance = errors.New("not enough balance")
 
-var ErrWrongOrder = errors.New("Wrong order")
+var ErrWrongOrder = errors.New("wrong order")
 
 type WithdrawCommand struct {
 	OrderID model.OrderID `json:"order_id"`
@@ -29,9 +29,9 @@ func NewWithdrawHandler(uow uow.UnitOfWork) *WithdrawHandler {
 
 // TODO handle error
 func (wh *WithdrawHandler) Handle(ctx context.Context, command *WithdrawCommand) (*types.AppResult[string], error) {
-	userID, ok := ctx.Value("userId").(int64)
-	if !ok {
-		return nil, fmt.Errorf("userId not found in context")
+	userID, err := auth.User(ctx)
+	if err != nil {
+		return nil, err
 	}
 	txUow, err := wh.uow.Begin(ctx)
 	if err != nil {
@@ -41,14 +41,14 @@ func (wh *WithdrawHandler) Handle(ctx context.Context, command *WithdrawCommand)
 
 	balance, err := balRep.GetForUpdate(ctx, userID)
 	if err != nil {
-		txUow.Rollback(ctx)
+		_ = txUow.Rollback(ctx)
 		return nil, err
 	}
 
 	orderRep := txUow.OrderRepository()
 	order, err := orderRep.Get(ctx, command.OrderID)
 	if err != nil {
-		txUow.Rollback(ctx)
+		_ = txUow.Rollback(ctx)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return &types.AppResult[string]{
 				Code:  types.Problem,

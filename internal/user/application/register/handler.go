@@ -7,30 +7,29 @@ import (
 	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
-	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrLoginAlreadyExists = errors.New("User already exists")
+var ErrLoginAlreadyExists = errors.New("user already exists")
 
 type RegisterHandler struct {
-	unitOfWork uow.UnitOfWork
-	jwtService *auth.JWT
+	unitOfWork  uow.UnitOfWork
+	authService auth.AuthService
 }
 type RegisterCommand struct {
 	Login    string
 	Password string
 }
 
-func New(unitOfWork uow.UnitOfWork, jwtService *auth.JWT) *RegisterHandler {
-	return &RegisterHandler{unitOfWork: unitOfWork, jwtService: jwtService}
+func New(unitOfWork uow.UnitOfWork, authService auth.AuthService) *RegisterHandler {
+	return &RegisterHandler{unitOfWork: unitOfWork, authService: authService}
 }
 
 func (h *RegisterHandler) Handle(ctx context.Context, command *RegisterCommand) (*types.AppResult[string], error) {
-	pwd, err := bcrypt.GenerateFromPassword([]byte(command.Password), bcrypt.DefaultCost)
+	pwd, salt, err := h.authService.GenerateHash([]byte(command.Password))
 	if err != nil {
 		return nil, err
 	}
-	user := model.NewUser(command.Login, pwd)
+	user := model.NewUser(command.Login, pwd, salt)
 	tuw, err := h.unitOfWork.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -54,13 +53,14 @@ func (h *RegisterHandler) Handle(ctx context.Context, command *RegisterCommand) 
 	}
 
 	balanceRepository := tuw.BonusBalanceRepository()
-	err = balanceRepository.Insert(ctx, &model.BonusBalance{UserId: id})
+	err = balanceRepository.Insert(ctx, &model.BonusBalance{UserID: id})
 	if err != nil {
 		_ = tuw.Rollback(ctx)
 		return nil, err
 	}
 
-	token, err := h.jwtService.BuildJWT(id)
+	user, _ = userRepository.Get(ctx, command.Login)
+	token, err := h.authService.Authenticate(user.ID, []byte(command.Password), user.Password, user.Salt)
 	if err != nil {
 		_ = tuw.Rollback(ctx)
 		return nil, err

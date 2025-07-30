@@ -3,17 +3,19 @@ package order
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/DimKa163/gophermart/internal/shared/auth"
+	"github.com/DimKa163/gophermart/internal/shared/logging"
 	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
 	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 )
 
 var ErrOrderConflict = errors.New("order conflict")
 
 type UploadOrderCommand struct {
-	Id int64
+	ID string
 }
 
 type UploadOrderHandler struct {
@@ -25,7 +27,9 @@ func NewUploadOrderHandler(unitOfWork uow.UnitOfWork) *UploadOrderHandler {
 }
 
 func (handler *UploadOrderHandler) Handle(ctx context.Context, command *UploadOrderCommand) (*types.AppResult[any], error) {
-	orderID, err := model.NewOrderID(command.Id)
+	orderID, err := model.NewOrderID(command.ID)
+	logger := logging.Logger(ctx).With(zap.String("orderId", orderID.String()))
+	ctx = logging.SetLogger(ctx, logger)
 	if err != nil {
 		return &types.AppResult[any]{
 			Code:  types.Problem,
@@ -33,9 +37,9 @@ func (handler *UploadOrderHandler) Handle(ctx context.Context, command *UploadOr
 		}, nil
 	}
 
-	userID, ok := ctx.Value("userId").(int64)
-	if !ok {
-		return nil, fmt.Errorf("userId not found in context")
+	userID, err := auth.User(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	ord, err := handler.unitOfWork.OrderRepository().Get(ctx, orderID)
@@ -57,6 +61,8 @@ func (handler *UploadOrderHandler) Handle(ctx context.Context, command *UploadOr
 }
 
 func (handler *UploadOrderHandler) handleExisted(ctx context.Context, userID int64, order *model.Order) (*types.AppResult[any], error) {
+	logger := logging.Logger(ctx)
+	logger.Info("Order already exists")
 	if order.UserID != userID {
 		return &types.AppResult[any]{
 			Code:  types.Duplicate,
@@ -67,6 +73,8 @@ func (handler *UploadOrderHandler) handleExisted(ctx context.Context, userID int
 }
 
 func (handler *UploadOrderHandler) handleCreated(ctx context.Context, userID int64, orderID model.OrderID) (*types.AppResult[any], error) {
+	logger := logging.Logger(ctx)
+	logger.Info("Uploading new order")
 	txUow, err := handler.unitOfWork.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -78,6 +86,7 @@ func (handler *UploadOrderHandler) handleCreated(ctx context.Context, userID int
 		Status:  model.OrderStatusNEW,
 	})
 	if err != nil {
+
 		return nil, err
 	}
 	if err = txUow.Commit(ctx); err != nil {

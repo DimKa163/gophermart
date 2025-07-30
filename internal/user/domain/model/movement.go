@@ -20,15 +20,6 @@ func (s *BonusMovementType) String() string {
 	return [...]string{"ACCRUAL", "WITHDRAWAL"}[*s]
 }
 
-func (s *BonusMovementType) Scan(value interface{}) error {
-	switch value.(type) {
-	case int:
-		*s = BonusMovementType(value.(int))
-		break
-	}
-	return nil
-}
-
 func (s *BonusMovementType) Value() (driver.Value, error) {
 	return int64(*s), nil
 }
@@ -41,7 +32,7 @@ type BonusMovement struct {
 	OrderID   OrderID
 }
 
-func NewBonusMovement(userID int64, tt BonusMovementType, amount types.Decimal, orderId OrderID) (*BonusMovement, error) {
+func NewBonusMovement(userID int64, tt BonusMovementType, amount types.Decimal, orderID OrderID) (*BonusMovement, error) {
 	if amount.IsNegative() {
 		return nil, ErrBonusMovement
 	}
@@ -50,6 +41,6 @@ func NewBonusMovement(userID int64, tt BonusMovementType, amount types.Decimal, 
 		CreatedAt: time.Now(),
 		Type:      tt,
 		Amount:    amount,
-		OrderID:   orderId,
+		OrderID:   orderID,
 	}, nil
 }

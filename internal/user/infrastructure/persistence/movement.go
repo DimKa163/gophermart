@@ -14,10 +14,10 @@ type bonusMovementRepository struct {
 	db db.QueryExecutor
 }
 
-func (b bonusMovementRepository) Sum(ctx context.Context, userId int64, tt model.BonusMovementType) (*types.Decimal, error) {
+func (b bonusMovementRepository) Sum(ctx context.Context, userID int64, tt model.BonusMovementType) (*types.Decimal, error) {
 	sql := "SELECT SUM(amount) FROM bonus_movements WHERE user_id = $1 AND type = $2"
 	var amountStr string
-	if err := b.db.QueryRow(ctx, sql, userId, tt).Scan(&amountStr); err != nil {
+	if err := b.db.QueryRow(ctx, sql, userID, tt).Scan(&amountStr); err != nil {
 		return nil, err
 	}
 	amount, err := types.NewDecimalFromString(amountStr)
@@ -27,16 +27,16 @@ func (b bonusMovementRepository) Sum(ctx context.Context, userId int64, tt model
 	return &amount, nil
 }
 
-func (b bonusMovementRepository) GetAll(ctx context.Context, userId int64, tt *model.BonusMovementType) ([]*model.BonusMovement, error) {
+func (b bonusMovementRepository) GetAll(ctx context.Context, userID int64, tt *model.BonusMovementType) ([]*model.BonusMovement, error) {
 	var sql string
 	var rows pgx.Rows
 	var err error
 	if tt != nil {
 		sql = "SELECT created_at, user_id, type, amount FROM bonus_movements WHERE user_id = $1 AND type = $2"
-		rows, err = b.db.Query(ctx, sql, userId, *tt)
+		rows, err = b.db.Query(ctx, sql, userID, *tt)
 	} else {
 		sql = "SELECT created_at, user_id, type, amount FROM bonus_movements WHERE user_id = $1"
-		rows, err = b.db.Query(ctx, sql, userId)
+		rows, err = b.db.Query(ctx, sql, userID)
 	}
 
 	if err != nil {
