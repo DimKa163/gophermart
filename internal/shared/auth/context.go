@@ -15,7 +15,15 @@ const (
 )
 
 func User(ctx context.Context) (int64, error) {
-	userID, ok := ctx.Value(user).(int64)
+	gCtx, ok := ctx.(*gin.Context)
+	if !ok {
+		userID, ok := ctx.Value(user).(int64)
+		if !ok {
+			return -1, ErrUserNotFound
+		}
+		return userID, nil
+	}
+	userID, ok := gCtx.Value(string(user)).(int64)
 	if !ok {
 		return -1, ErrUserNotFound
 	}

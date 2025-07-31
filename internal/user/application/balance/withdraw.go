@@ -27,8 +27,8 @@ func NewWithdrawHandler(uow uow.UnitOfWork) *WithdrawHandler {
 	return &WithdrawHandler{uow: uow}
 }
 
-// TODO handle error
-func (wh *WithdrawHandler) Handle(ctx context.Context, command *WithdrawCommand) (*types.AppResult[string], error) {
+func (wh *WithdrawHandler) Handle(ctx context.Context, command *WithdrawCommand) (*types.AppResult[any], error) {
+	var err error
 	userID, err := auth.User(ctx)
 	if err != nil {
 		return nil, err
@@ -38,19 +38,24 @@ func (wh *WithdrawHandler) Handle(ctx context.Context, command *WithdrawCommand)
 		return nil, err
 	}
 	balRep := txUow.BonusBalanceRepository()
-
+	defer func() {
+		if err != nil {
+			_ = txUow.Rollback(ctx)
+			return
+		}
+		_ = txUow.Commit(ctx)
+	}()
 	balance, err := balRep.GetForUpdate(ctx, userID)
 	if err != nil {
-		_ = txUow.Rollback(ctx)
 		return nil, err
 	}
 
 	orderRep := txUow.OrderRepository()
+
 	order, err := orderRep.Get(ctx, command.OrderID)
 	if err != nil {
-		_ = txUow.Rollback(ctx)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return &types.AppResult[string]{
+			return &types.AppResult[any]{
 				Code:  types.Problem,
 				Error: ErrWrongOrder,
 			}, nil
@@ -59,43 +64,34 @@ func (wh *WithdrawHandler) Handle(ctx context.Context, command *WithdrawCommand)
 	}
 
 	if balance.Current.Cmp(command.Sum) == -1 {
-		txUow.Rollback(ctx)
-		return &types.AppResult[string]{
+		return &types.AppResult[any]{
 			Code:  types.Problem,
 			Error: ErrNegativeBalance,
 		}, nil
 	}
 	movement, err := model.NewBonusMovement(userID, model.WITHDRAWAL, command.Sum, order.OrderID)
 	if err != nil {
-		txUow.Rollback(ctx)
 		return nil, err
 	}
 	movRep := txUow.BonusMovementRepository()
 	if err = movRep.Insert(ctx, movement); err != nil {
-		txUow.Rollback(ctx)
 		return nil, err
 	}
 	accSum, err := movRep.Sum(ctx, userID, model.ACCRUAL)
 	if err != nil {
-		txUow.Rollback(ctx)
 		return nil, err
 	}
 	withSum, err := movRep.Sum(ctx, userID, model.WITHDRAWAL)
 	if err != nil {
-		txUow.Rollback(ctx)
 		return nil, err
 	}
 	result := accSum.Sub(*withSum)
 	balance.Current = result
 	balance.Withdrawn = *withSum
 	if err = balRep.Update(ctx, balance); err != nil {
-		txUow.Rollback(ctx)
 		return nil, err
 	}
-	if err = txUow.Commit(ctx); err != nil {
-		return nil, err
-	}
-	return &types.AppResult[string]{
+	return &types.AppResult[any]{
 		Code: types.Created,
 	}, nil
 }

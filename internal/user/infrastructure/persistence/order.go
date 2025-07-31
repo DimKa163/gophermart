@@ -13,6 +13,37 @@ type orderRepository struct {
 	db db.QueryExecutor
 }
 
+func (o *orderRepository) GetForUpdate(ctx context.Context, limit int, status ...model.OrderStatus) ([]*model.Order, error) {
+	sql := "SELECT id, uploaded_at, user_id, status, accrual " +
+		"FROM orders WHERE status=ANY($1) ORDER BY uploaded_at LIMIT $2 FOR UPDATE SKIP LOCKED"
+	var orders []*model.Order
+	rows, err := o.db.Query(ctx, sql, status, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var orderID int64
+		var order model.Order
+		var accrual *string
+		if err := rows.Scan(&orderID, &order.UploadedAt, &order.UserID, &order.Status, &accrual); err != nil {
+			return nil, err
+		}
+		order.OrderID = model.OrderID{Value: orderID}
+		var acc types.Decimal
+		if accrual != nil {
+			acc, err = types.NewDecimalFromString(*accrual)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		order.Accrual = &acc
+		orders = append(orders, &order)
+	}
+	return orders, nil
+}
+
 func (o *orderRepository) Get(ctx context.Context, id model.OrderID) (*model.Order, error) {
 	sql := "SELECT id, uploaded_at, user_id, status, accrual FROM orders WHERE id=$1"
 	var order model.Order

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS orders
     uploaded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     user_id BIGSERIAL REFERENCES users(id),
     status INT NULL,
-    accrual DECIMAL(10, 2)
+    accrual DECIMAL(10, 2) NULL
 );
 
 CREATE INDEX IF NOT EXISTS orders_user_id_ix ON orders(user_id ASC);

@@ -8,5 +8,6 @@ type Config struct {
 	Accrual  string
 	Secret   string
 	LogLevel string
+	Schedule string
 	Argon    auth.ArgonConfig
 }
