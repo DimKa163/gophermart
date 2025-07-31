@@ -49,7 +49,7 @@ func SetLogger(ctx context.Context, l *zap.Logger) context.Context {
 	//чёртов gin.Context
 	gCtx, ok := ctx.(*gin.Context)
 	if !ok {
-		ctx = context.WithValue(ctx, string(loggerID), l)
+		ctx = context.WithValue(ctx, loggerID, l)
 		return ctx
 	}
 	gCtx.Set(string(loggerID), l)
