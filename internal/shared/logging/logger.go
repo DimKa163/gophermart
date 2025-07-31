@@ -30,7 +30,15 @@ func Initialize(level string) error {
 }
 
 func Logger(ctx context.Context) *zap.Logger {
-	logger, ok := ctx.Value(string(loggerID)).(*zap.Logger)
+	gCtx, ok := ctx.(*gin.Context)
+	if !ok {
+		logger, ok := ctx.Value(loggerID).(*zap.Logger)
+		if !ok {
+			logger = Log
+		}
+		return logger
+	}
+	logger, ok := gCtx.Value(string(loggerID)).(*zap.Logger)
 	if !ok {
 		logger = Log
 	}

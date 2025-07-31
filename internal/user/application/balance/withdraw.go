@@ -44,7 +44,6 @@ func (wh *WithdrawHandler) Handle(ctx context.Context, command *WithdrawCommand)
 			return
 		}
 		_ = txUow.Commit(ctx)
-		return
 	}()
 	balance, err := balRep.GetForUpdate(ctx, userID)
 	if err != nil {
