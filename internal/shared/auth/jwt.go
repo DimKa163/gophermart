@@ -21,7 +21,7 @@ type JWTEngine struct {
 	JWTConfig
 }
 
-func NewJWTBuilder(config JWTConfig) *JWTEngine {
+func NewJWT(config JWTConfig) *JWTEngine {
 	return &JWTEngine{
 		JWTConfig: config,
 	}

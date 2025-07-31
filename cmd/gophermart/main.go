@@ -19,6 +19,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	err = server.AddMediatr()
+	if err != nil {
+		logging.Log.Fatal("Failed to bind handlers", zap.Error(err))
+		return
+	}
 	server.Map()
 	if err = server.Run(); err != nil {
 		if !errors.Is(err, http.ErrServerClosed) {

@@ -20,6 +20,7 @@ func ParseFlags(config *gophermart.Config) {
 	flag.StringVar(&config.Accrual, "r", "", "Accrual service")
 	flag.StringVar(&config.Secret, "s", "secret", "Secret service")
 	flag.StringVar(&config.Secret, "l", "info", "Log level")
+	flag.StringVar(&config.Schedule, "sh", "*/10 * * * * *", "schedule")
 	flag.UintVar(&argonMemory, "m", 64, "argon memory")
 	flag.UintVar(&argonIterations, "i", 3, "argon iteration")
 	flag.UintVar(&argonParallelism, "pr", 2, "argon parallelism")
@@ -49,6 +50,9 @@ func ParseFlags(config *gophermart.Config) {
 
 	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
 		config.LogLevel = envLogLevel
+	}
+	if envScheduleLog := os.Getenv("WORKER_SCHEDULE"); envScheduleLog != "" {
+		config.Schedule = envScheduleLog
 	}
 	env.ParseUIntEnv("ARGON_MEMORY", &argonMemory)
 	env.ParseUIntEnv("ARGON_ITERATION", &argonIterations)

@@ -30,7 +30,7 @@ func Initialize(level string) error {
 }
 
 func Logger(ctx context.Context) *zap.Logger {
-	logger, ok := ctx.Value(loggerID).(*zap.Logger)
+	logger, ok := ctx.Value(string(loggerID)).(*zap.Logger)
 	if !ok {
 		logger = Log
 	}
@@ -41,7 +41,7 @@ func SetLogger(ctx context.Context, l *zap.Logger) context.Context {
 	//чёртов gin.Context
 	gCtx, ok := ctx.(*gin.Context)
 	if !ok {
-		ctx = context.WithValue(ctx, loggerID, l)
+		ctx = context.WithValue(ctx, string(loggerID), l)
 		return ctx
 	}
 	gCtx.Set(string(loggerID), l)
