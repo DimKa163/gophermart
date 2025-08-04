@@ -35,9 +35,7 @@ func (a accrualClient) Order(ctx context.Context, number string) (*dto.Order, er
 	if err != nil {
 		return nil, err
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNoContent {
 			return nil, ErrNoContent

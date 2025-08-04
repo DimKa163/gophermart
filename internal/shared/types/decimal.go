@@ -17,7 +17,7 @@ func (d *Decimal) MarshalJSON() ([]byte, error) {
 }
 
 func (d *Decimal) UnmarshalJSON(data []byte) error {
-	var strVal string = string(data)
+	strVal := string(data)
 	dec, err := decimal.NewFromString(strVal)
 	if err != nil {
 		return fmt.Errorf("Decimal.UnmarshalJSON: invalid input: %s", string(data))

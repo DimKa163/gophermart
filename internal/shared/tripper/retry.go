@@ -52,7 +52,7 @@ func (rt *retryRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 			}
 			retryAfter := response.Header.Get("Retry-After")
 			if retryAfter != "" {
-				seconds, _ = strconv.Atoi(retryAfter)
+				seconds, err = strconv.Atoi(retryAfter)
 				if err != nil {
 					seconds = times[attempt]
 				}
