@@ -2,7 +2,6 @@ package gophermart
 
 import (
 	"context"
-	"fmt"
 	"github.com/DimKa163/gophermart/internal/shared/auth"
 	"github.com/DimKa163/gophermart/internal/shared/db"
 	"github.com/DimKa163/gophermart/internal/shared/logging"
@@ -202,7 +201,7 @@ func addAccrualClient(addr string) accrual.AccrualClient {
 			return tripper.NewLoggingRoundTripper(transport)
 		},
 	}
-	return accrual.New(fmt.Sprintf("http://%s", addr), tripperFc)
+	return accrual.New(addr, tripperFc)
 }
 
 func addCron() *cron.Cron {
