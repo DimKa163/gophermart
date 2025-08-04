@@ -29,27 +29,27 @@ func (b bonusMovementRepository) GetAll(ctx context.Context, userID int64, tt *m
 		return nil, err
 	}
 	defer rows.Close()
-	var movements []*model.Transaction
+	var transactions []*model.Transaction
 	for rows.Next() {
-		var movement model.Transaction
+		var transaction model.Transaction
 		var orderID int64
 		var amountStr string
-		if err = rows.Scan(&movement.CreatedAt, &movement.UserID, &movement.Type, &amountStr, &orderID); err != nil {
+		if err = rows.Scan(&transaction.CreatedAt, &transaction.UserID, &transaction.Type, &amountStr, &orderID); err != nil {
 			return nil, err
 		}
-		movement.OrderID = model.OrderID{
+		transaction.OrderID = model.OrderID{
 			Value: orderID,
 		}
-		movement.Amount, err = types.NewDecimalFromString(amountStr)
+		transaction.Amount, err = types.NewDecimalFromString(amountStr)
 		if err != nil {
 			return nil, err
 		}
-		movements = append(movements, &movement)
+		transactions = append(transactions, &transaction)
 	}
-	return movements, nil
+	return transactions, nil
 }
 
-func NewBonusMovementRepository(db db.QueryExecutor) repository.BonusMovementRepository {
+func NewBonusMovementRepository(db db.QueryExecutor) repository.TransactionRepository {
 	return &bonusMovementRepository{
 		db: db,
 	}

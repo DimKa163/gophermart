@@ -18,9 +18,9 @@ func (o *orderRepository) Update(ctx context.Context, order *model.Order) error 
 	if _, err := o.db.Exec(ctx, sql, order.Status, &order.Accrual, order.OrderID.Value); err != nil {
 		return err
 	}
-	trSql := "INSERT INTO transactions (created_at, user_id, type, amount, order_id) VALUES ($1, $2, $3, $4, $5)"
+	trSQL := "INSERT INTO transactions (created_at, user_id, type, amount, order_id) VALUES ($1, $2, $3, $4, $5)"
 	for _, tr := range order.Transactions() {
-		if _, err := o.db.Exec(ctx, trSql, time.Now(), tr.UserID, tr.Type, tr.Amount, tr.OrderID.Value); err != nil {
+		if _, err := o.db.Exec(ctx, trSQL, time.Now(), tr.UserID, tr.Type, tr.Amount, tr.OrderID.Value); err != nil {
 			return err
 		}
 	}
