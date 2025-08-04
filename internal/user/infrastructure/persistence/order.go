@@ -13,6 +13,15 @@ type orderRepository struct {
 	db db.QueryExecutor
 }
 
+func (o *orderRepository) Exists(ctx context.Context, id model.OrderID) (bool, error) {
+	sql := "SELECT COUNT(*) FROM orders WHERE id = $1"
+	var count int
+	if err := o.db.QueryRow(ctx, sql, id.Value).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (o *orderRepository) Update(ctx context.Context, order *model.Order) error {
 	sql := "UPDATE orders SET status=$1, accrual=$2 WHERE id=$3"
 	if _, err := o.db.Exec(ctx, sql, order.Status, &order.Accrual, order.OrderID.Value); err != nil {
@@ -109,13 +118,14 @@ func (o *orderRepository) GetAll(ctx context.Context, userID int64) ([]*model.Or
 	return orders, nil
 }
 
-func (o *orderRepository) Insert(ctx context.Context, order *model.Order) (string, error) {
+func (o *orderRepository) Insert(ctx context.Context, order *model.Order) (model.OrderID, error) {
 	sql := "INSERT INTO orders (id, uploaded_at, user_id, status) VALUES ($1, $2, $3, $4) RETURNING id"
 	var id string
 	if err := o.db.QueryRow(ctx, sql, order.OrderID.Value, time.Now(), order.UserID, order.Status).Scan(&id); err != nil {
-		return "", err
+		return model.DefaultOrderID, err
 	}
-	return id, nil
+	orderID, _ := model.NewOrderID(id)
+	return orderID, nil
 }
 
 func NewOrderRepository(db db.QueryExecutor) repository.OrderRepository {
