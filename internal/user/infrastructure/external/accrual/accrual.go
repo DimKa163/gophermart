@@ -25,7 +25,7 @@ type accrualClient struct {
 }
 
 func (a accrualClient) Order(ctx context.Context, number string) (*dto.Order, error) {
-	fullAddr := fmt.Sprintf("%s/api/order/%s", a.addr, number)
+	fullAddr := fmt.Sprintf("%s/api/orders/%s", a.addr, number)
 	req, err := http.NewRequestWithContext(ctx, "GET", fullAddr, nil)
 	if err != nil {
 		return nil, err

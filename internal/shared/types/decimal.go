@@ -53,8 +53,8 @@ func (d *Decimal) IsNegative() bool {
 func (d *Decimal) IsPositive() bool {
 	return d.Decimal.IsPositive()
 }
-func (d *Decimal) IsZero() bool {
-	return d.Decimal.IsZero()
+func (d Decimal) IsZero() bool {
+	return d.Equal(decimal.Zero)
 }
 func (d *Decimal) Value() (driver.Value, error) {
 	return d.Decimal.String(), nil
