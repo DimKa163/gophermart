@@ -65,7 +65,10 @@ func (wh *WithdrawHandler) Handle(ctx context.Context, command *WithdrawCommand)
 		bal = &model.BonusBalance{}
 	}
 	if bal.Current.Cmp(command.Sum) < 0 {
-		return nil, ErrNegativeBalance
+		return &types.AppResult[any]{
+			Code:  types.Problem,
+			Error: ErrNegativeBalance,
+		}, nil
 	}
 	order.AddTransaction(model.WITHDRAWAL, command.Sum)
 	err = orderRep.Update(ctx, order)
