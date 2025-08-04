@@ -38,7 +38,7 @@ func (o *orderRepository) Update(ctx context.Context, order *model.Order) error 
 
 func (o *orderRepository) GetForUpdate(ctx context.Context, limit, offset int, status ...model.OrderStatus) ([]*model.Order, error) {
 	sql := "SELECT id, uploaded_at, user_id, status, accrual " +
-		"FROM orders WHERE status=ANY($1) ORDER BY uploaded_at LIMIT $2 OFFSET $3"
+		"FROM orders WHERE status=ANY($1) ORDER BY uploaded_at LIMIT $2 OFFSET $3 FOR UPDATE SKIP LOCKED"
 	var orders []*model.Order
 	rows, err := o.db.Query(ctx, sql, status, limit, offset)
 	if err != nil {
