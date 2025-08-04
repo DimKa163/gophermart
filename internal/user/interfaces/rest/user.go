@@ -152,7 +152,7 @@ func (u *userAPI) GetBalance(context *gin.Context) {
 	}
 	switch result.Code {
 	case types.NoChange:
-		context.JSON(http.StatusOK, contracts.BalanceResponse{Current: result.Payload.Current, Withdrawn: result.Payload.Withdrawn})
+		context.JSON(http.StatusOK, contracts.BalanceResponse{Current: &result.Payload.Current, Withdrawn: &result.Payload.Withdrawn})
 	}
 }
 
@@ -193,7 +193,7 @@ func (u *userAPI) Withdraw(context *gin.Context) {
 
 func (u *userAPI) GetWithdrawals(context *gin.Context) {
 	logger := logging.Logger(context)
-	result, err := mediatr.Send[*withdrawal.WithdrawalQuery, *types.AppResult[[]*model.BonusMovement]](context,
+	result, err := mediatr.Send[*withdrawal.WithdrawalQuery, *types.AppResult[[]*model.Transaction]](context,
 		&withdrawal.WithdrawalQuery{})
 	if err != nil {
 		logger.Error("Unhandled error occurred", zap.Error(err))

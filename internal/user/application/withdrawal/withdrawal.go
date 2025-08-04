@@ -18,7 +18,7 @@ func NewWithdrawalQueryHandler(uow uow.UnitOfWork) *WithdrawalQueryHandler {
 	return &WithdrawalQueryHandler{uow: uow}
 }
 
-func (w *WithdrawalQueryHandler) Handle(ctx context.Context, _ *WithdrawalQuery) (*types.AppResult[[]*model.BonusMovement], error) {
+func (w *WithdrawalQueryHandler) Handle(ctx context.Context, _ *WithdrawalQuery) (*types.AppResult[[]*model.Transaction], error) {
 	userID, err := auth.User(ctx)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func (w *WithdrawalQueryHandler) Handle(ctx context.Context, _ *WithdrawalQuery)
 	if err != nil {
 		return nil, err
 	}
-	return &types.AppResult[[]*model.BonusMovement]{
+	return &types.AppResult[[]*model.Transaction]{
 		Code:    types.NoChange,
 		Payload: items,
 	}, nil

@@ -2,9 +2,12 @@ package gophermart
 
 import (
 	"context"
+	"fmt"
 	"github.com/DimKa163/gophermart/internal/shared/auth"
+	"github.com/DimKa163/gophermart/internal/shared/db"
 	"github.com/DimKa163/gophermart/internal/shared/logging"
 	"github.com/DimKa163/gophermart/internal/shared/mediatr"
+	"github.com/DimKa163/gophermart/internal/shared/tripper"
 	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/application/balance"
 	"github.com/DimKa163/gophermart/internal/user/application/login"
@@ -13,6 +16,7 @@ import (
 	"github.com/DimKa163/gophermart/internal/user/application/withdrawal"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
+	"github.com/DimKa163/gophermart/internal/user/infrastructure/external/accrual"
 	"github.com/DimKa163/gophermart/internal/user/infrastructure/persistence"
 	"github.com/DimKa163/gophermart/internal/user/interfaces/middleware"
 	"github.com/DimKa163/gophermart/internal/user/interfaces/rest"
@@ -31,7 +35,9 @@ type ServiceContainer struct {
 	authService auth.AuthService
 	unitOfWork  uow.UnitOfWork
 	pgPool      *pgxpool.Pool
-	worker      *worker.Worker
+	worker      *worker.OrderPooler
+	crn         *cron.Cron
+	accrualCl   accrual.AccrualClient
 }
 type Server struct {
 	Config
@@ -40,21 +46,7 @@ type Server struct {
 	*ServiceContainer
 }
 
-func New(conf Config) (*Server, error) {
-	pg, err := pgxpool.New(context.Background(), conf.Database)
-	if err != nil {
-		return nil, err
-	}
-	unitOfWork := persistence.NewUnitOfWork(pg)
-	jwtAuth := auth.NewJWT(auth.JWTConfig{
-		TokenExpiration: time.Minute * 30,
-		SecretKey:       []byte(conf.Secret),
-	})
-	authService := auth.NewAuthService(conf.Argon, jwtAuth)
-
-	wrk := worker.NewWorker(cron.New(cron.WithSeconds(),
-		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger))),
-		conf.Schedule)
+func New(conf Config) *Server {
 	router := gin.New()
 	return &Server{
 		Config: conf,
@@ -64,13 +56,30 @@ func New(conf Config) (*Server, error) {
 			Handler: router.Handler(),
 		},
 		ServiceContainer: &ServiceContainer{
-			userAPI:     rest.NewUserAPI(),
-			authService: authService,
-			pgPool:      pg,
-			worker:      wrk,
-			unitOfWork:  unitOfWork,
+			userAPI: rest.NewUserAPI(),
 		},
-	}, nil
+	}
+}
+
+func (s *Server) AddServices() error {
+	var err error
+	s.pgPool, err = addPgPool(s.Database)
+	if err != nil {
+		return err
+	}
+	s.authService = s.addAuthService()
+	s.unitOfWork = addUnitOfWork(s.pgPool)
+	accrualCl := addAccrualClient(s.Accrual)
+	s.crn = addCron()
+	s.worker, err = addCronWorker(s.crn, s.Schedule, 10)
+	if err != nil {
+		return err
+	}
+	err = addMediatr(s.unitOfWork, s.authService, accrualCl)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Server) AddLogging() error {
@@ -105,7 +114,8 @@ func (s *Server) Run() error {
 	if err := persistence.Migrate(s.pgPool); err != nil {
 		return err
 	}
-	if err := s.worker.Start(ctx); err != nil {
+	s.crn.Start()
+	if err := s.worker.Run(ctx); err != nil {
 		return err
 	}
 	go func() {
@@ -117,47 +127,94 @@ func (s *Server) Run() error {
 	return s.ListenAndServe()
 }
 
-func (s *Server) AddMediatr() error {
+func addMediatr(unitOfWork uow.UnitOfWork, authService auth.AuthService, accrualCl accrual.AccrualClient) error {
 	var err error
 	err = mediatr.Bind[*register.RegisterCommand,
-		*types.AppResult[string]](register.New(s.unitOfWork, s.authService))
+		*types.AppResult[string]](register.New(unitOfWork, authService))
 	if err != nil {
 		return err
 	}
 	err = mediatr.Bind[*login.LoginCommand,
-		*types.AppResult[string]](login.New(s.unitOfWork, s.authService))
+		*types.AppResult[string]](login.New(unitOfWork, authService))
 	if err != nil {
 		return err
 	}
 	err = mediatr.Bind[*order.UploadOrderCommand,
-		*types.AppResult[any]](order.NewUploadOrderHandler(s.unitOfWork))
+		*types.AppResult[any]](order.NewUploadOrderHandler(unitOfWork))
 	if err != nil {
 		return err
 	}
 	err = mediatr.Bind[*order.OrderQuery,
-		*types.AppResult[[]*model.Order]](order.NewOrderQueryHandler(s.unitOfWork))
+		*types.AppResult[[]*model.Order]](order.NewOrderQueryHandler(unitOfWork))
 	if err != nil {
 		return err
 	}
 	err = mediatr.Bind[*balance.BalanceQuery,
-		*types.AppResult[*model.BonusBalance]](balance.NewBalanceQueryHandler(s.unitOfWork))
+		*types.AppResult[*model.BonusBalance]](balance.NewBalanceQueryHandler(unitOfWork))
 	if err != nil {
 		return err
 	}
 	err = mediatr.Bind[*balance.WithdrawCommand,
-		*types.AppResult[any]](balance.NewWithdrawHandler(s.unitOfWork))
+		*types.AppResult[any]](balance.NewWithdrawHandler(unitOfWork))
 	if err != nil {
 		return err
 	}
 	err = mediatr.Bind[*withdrawal.WithdrawalQuery,
-		*types.AppResult[[]*model.BonusMovement]](withdrawal.NewWithdrawalQueryHandler(s.unitOfWork))
+		*types.AppResult[[]*model.Transaction]](withdrawal.NewWithdrawalQueryHandler(unitOfWork))
 	if err != nil {
 		return err
 	}
 	err = mediatr.Bind[*order.TrackOrderCommand,
-		*types.AppResult[any]](order.NewTrackOrderHandler(s.unitOfWork))
+		*types.AppResult[any]](order.NewTrackOrderHandler(unitOfWork, order.NewTrackOrderProcessor(accrualCl)))
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func addPgPool(database string) (*pgxpool.Pool, error) {
+	pg, err := pgxpool.New(context.Background(), database)
+	if err != nil {
+		return nil, err
+	}
+	return pg, nil
+}
+
+func (s *Server) addAuthService() auth.AuthService {
+	jwtAuth := auth.NewJWT(auth.JWTConfig{
+		TokenExpiration: time.Minute * 30,
+		SecretKey:       []byte(s.Secret),
+	})
+	s.authService = auth.NewAuthService(s.Argon, jwtAuth)
+	return s.authService
+}
+
+func addUnitOfWork(db db.QueryExecutor) uow.UnitOfWork {
+	return persistence.NewUnitOfWork(db)
+}
+
+func addAccrualClient(addr string) accrual.AccrualClient {
+	tripperFc := []func(transport http.RoundTripper) http.RoundTripper{
+		func(transport http.RoundTripper) http.RoundTripper {
+			return tripper.NewRetryRoundTripper(transport)
+		},
+		func(transport http.RoundTripper) http.RoundTripper {
+			return tripper.NewLoggingRoundTripper(transport)
+		},
+	}
+	return accrual.New(fmt.Sprintf("http://%s", addr), tripperFc)
+}
+
+func addCron() *cron.Cron {
+	return cron.New(cron.WithSeconds(),
+		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
+}
+
+func addCronWorker(crn *cron.Cron, schedule string, limit int) (*worker.OrderPooler, error) {
+	wrk, err := worker.NewWorker(crn,
+		schedule, limit)
+	if err != nil {
+		return nil, err
+	}
+	return wrk, nil
 }

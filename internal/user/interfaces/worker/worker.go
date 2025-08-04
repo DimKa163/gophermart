@@ -10,48 +10,54 @@ import (
 	"go.uber.org/zap"
 )
 
-type Worker struct {
-	cron     *cron.Cron
+type OrderPooler struct {
+	entryID  cron.EntryID
+	signal   chan struct{}
 	schedule string
+	limit    int
 }
 
-func NewWorker(cron *cron.Cron, schedule string) *Worker {
-	return &Worker{
-		cron:     cron,
-		schedule: schedule,
-	}
-}
-
-func (w *Worker) Start(ctx context.Context) error {
-	_, err := w.cron.AddFunc(w.schedule, func() {
-		if ctx.Err() != nil {
-			return
-		}
-		logger := logging.Logger(ctx)
-		err := w.Run(ctx)
-		if err != nil {
-			logger.Warn("Failed to run job", zap.Error(err))
-		}
+func NewWorker(cron *cron.Cron, schedule string, limit int) (*OrderPooler, error) {
+	signal := make(chan struct{})
+	id, err := cron.AddFunc(schedule, func() {
+		signal <- struct{}{}
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
+	return &OrderPooler{
+		entryID:  id,
+		signal:   signal,
+		schedule: schedule,
+		limit:    limit,
+	}, nil
+}
 
-	w.cron.Start()
+func (w *OrderPooler) Run(ctx context.Context) error {
+
 	logger := logging.Logger(ctx)
+	ctx = logging.SetLogger(ctx, logger.With(zap.String("schedule", w.schedule)))
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+			case <-w.signal:
+				logger := logging.Logger(ctx)
+				logger.Info("start processing orders")
+				_, err := mediatr.Send[*order.TrackOrderCommand, *types.AppResult[any]](ctx, &order.TrackOrderCommand{
+					Limit: 100,
+				})
+				if err != nil {
+					logger.Warn("Failed to handle orders", zap.Error(err))
+				}
+			}
+		}
+	}()
 	logger.Info("started")
 	return nil
 }
-
-func (w *Worker) Run(ctx context.Context) error {
+func (w *OrderPooler) Stop(ctx context.Context) {
 	logger := logging.Logger(ctx)
-	logger.Info("start processing orders")
-	_, err := mediatr.Send[*order.TrackOrderCommand, *types.AppResult[any]](ctx, &order.TrackOrderCommand{
-		Limit: 100,
-	})
-	if err != nil {
-		logger.Warn("Failed to handle orders", zap.Error(err))
-		return err
-	}
-	return nil
+	logger.Info("stopping processing orders")
+	close(w.signal)
 }

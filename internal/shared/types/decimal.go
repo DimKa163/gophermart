@@ -2,7 +2,6 @@ package types
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 	"github.com/shopspring/decimal"
 )
@@ -12,15 +11,17 @@ type Decimal struct {
 }
 
 func (d *Decimal) MarshalJSON() ([]byte, error) {
-	return []byte(d.String()), nil
+
+	a := []byte(d.String())
+	return a, nil
 }
 
 func (d *Decimal) UnmarshalJSON(data []byte) error {
-	var strVal float64
-	if err := json.Unmarshal(data, &strVal); err != nil {
+	var strVal string = string(data)
+	dec, err := decimal.NewFromString(strVal)
+	if err != nil {
 		return fmt.Errorf("Decimal.UnmarshalJSON: invalid input: %s", string(data))
 	}
-	dec := decimal.NewFromFloat(strVal)
 	d.Decimal = dec
 	return nil
 }

@@ -13,11 +13,25 @@ type orderRepository struct {
 	db db.QueryExecutor
 }
 
-func (o *orderRepository) GetForUpdate(ctx context.Context, limit int, status ...model.OrderStatus) ([]*model.Order, error) {
+func (o *orderRepository) Update(ctx context.Context, order *model.Order) error {
+	sql := "UPDATE orders SET status=$1, accrual=$2 WHERE id=$3"
+	if _, err := o.db.Exec(ctx, sql, order.Status, &order.Accrual, order.OrderID.Value); err != nil {
+		return err
+	}
+	trSql := "INSERT INTO transactions (created_at, user_id, type, amount, order_id) VALUES ($1, $2, $3, $4, $5)"
+	for _, tr := range order.Transactions() {
+		if _, err := o.db.Exec(ctx, trSql, time.Now(), tr.UserID, tr.Type, tr.Amount, tr.OrderID.Value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (o *orderRepository) GetForUpdate(ctx context.Context, limit, offset int, status ...model.OrderStatus) ([]*model.Order, error) {
 	sql := "SELECT id, uploaded_at, user_id, status, accrual " +
-		"FROM orders WHERE status=ANY($1) ORDER BY uploaded_at LIMIT $2 FOR UPDATE SKIP LOCKED"
+		"FROM orders WHERE status=ANY($1) ORDER BY uploaded_at LIMIT $2 OFFSET $3 FOR UPDATE SKIP LOCKED"
 	var orders []*model.Order
-	rows, err := o.db.Query(ctx, sql, status, limit)
+	rows, err := o.db.Query(ctx, sql, status, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +52,7 @@ func (o *orderRepository) GetForUpdate(ctx context.Context, limit int, status ..
 			}
 		}
 
-		order.Accrual = &acc
+		order.Accrual = acc
 		orders = append(orders, &order)
 	}
 	return orders, nil
@@ -60,7 +74,7 @@ func (o *orderRepository) Get(ctx context.Context, id model.OrderID) (*model.Ord
 			return nil, err
 		}
 	}
-	order.Accrual = &acc
+	order.Accrual = acc
 	order.OrderID = model.OrderID{Value: orderID}
 	return &order, nil
 }
@@ -89,7 +103,7 @@ func (o *orderRepository) GetAll(ctx context.Context, userID int64) ([]*model.Or
 			}
 		}
 
-		order.Accrual = &acc
+		order.Accrual = acc
 		orders = append(orders, &order)
 	}
 	return orders, nil
