@@ -85,7 +85,7 @@ func (rt *retryRoundTripper) drain(response *http.Response) error {
 		if err != nil {
 			return err
 		}
-		_ = response.Body.Close()
+		defer response.Body.Close()
 	}
 	return nil
 }
