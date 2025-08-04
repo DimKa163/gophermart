@@ -9,10 +9,13 @@ import (
 
 func Logging() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		data, _ := c.GetRawData()
 		logging.Log.Info(
 			"got incoming HTTP request",
 			zap.String("method", c.Request.Method),
 			zap.String("path", c.Request.URL.Path),
+			zap.String("query", c.Request.URL.RawQuery),
+			zap.String("body", string(data)),
 		)
 		logger := logging.Log.With(zap.String("method", c.Request.Method),
 			zap.String("path", c.Request.URL.Path))
