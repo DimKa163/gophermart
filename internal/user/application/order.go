@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	ErrOrderIdProblem             = errors.New("Order ID is invalid")
 	ErrOrderExistsWithAnotherUser = &domain.ResourceAlreadyExists{Message: "Order already exists"}
 	ErrNegativeBalance            = domain.NewProblemError("Not enough bonus points", nil)
 )

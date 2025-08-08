@@ -44,7 +44,7 @@ func (u *userAPI) Register(context *gin.Context) {
 	}
 	result, err := u.user.Register(context, user.Login, user.Password)
 	if err != nil {
-		if errors.Is(application.ErrLoginAlreadyExists, err) {
+		if errors.Is(err, application.ErrLoginAlreadyExists) {
 			context.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
@@ -67,7 +67,7 @@ func (u *userAPI) Login(context *gin.Context) {
 
 	result, err := u.user.Login(context, user.Login, user.Password)
 	if err != nil {
-		if errors.Is(application.ErrUserNotFound, err) {
+		if errors.Is(err, application.ErrUserNotFound) {
 			context.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
@@ -89,11 +89,11 @@ func (u *userAPI) Upload(context *gin.Context) {
 	}
 	result, err := u.order.Upload(context, string(body))
 	if err != nil {
-		if errors.Is(model.ErrOrderID, err) {
+		if errors.Is(err, model.ErrOrderID) {
 			context.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 			return
 		}
-		if errors.Is(application.ErrOrderExistsWithAnotherUser, err) {
+		if errors.Is(err, application.ErrOrderExistsWithAnotherUser) {
 			context.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
@@ -153,7 +153,7 @@ func (u *userAPI) Withdraw(context *gin.Context) {
 	}
 	err := u.order.Withdraw(context, body.OrderID, body.Sum)
 	if err != nil {
-		if errors.Is(model.ErrOrderID, err) {
+		if errors.Is(err, model.ErrOrderID) {
 			context.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 			return
 		}
