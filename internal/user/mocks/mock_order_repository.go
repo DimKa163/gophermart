@@ -35,6 +35,21 @@ func (m *MockOrderRepository) EXPECT() *MockOrderRepositoryMockRecorder {
 	return m.recorder
 }
 
+// Exists mocks base method.
+func (m *MockOrderRepository) Exists(ctx context.Context, id model.OrderID) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Exists", ctx, id)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Exists indicates an expected call of Exists.
+func (mr *MockOrderRepositoryMockRecorder) Exists(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockOrderRepository)(nil).Exists), ctx, id)
+}
+
 // Get mocks base method.
 func (m *MockOrderRepository) Get(ctx context.Context, id model.OrderID) (*model.Order, error) {
 	m.ctrl.T.Helper()
@@ -51,25 +66,45 @@ func (mr *MockOrderRepositoryMockRecorder) Get(ctx, id interface{}) *gomock.Call
 }
 
 // GetAll mocks base method.
-func (m *MockOrderRepository) GetAll(ctx context.Context, userId int64) ([]*model.Order, error) {
+func (m *MockOrderRepository) GetAll(ctx context.Context, userID int64) ([]*model.Order, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAll", ctx, userId)
+	ret := m.ctrl.Call(m, "GetAll", ctx, userID)
 	ret0, _ := ret[0].([]*model.Order)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAll indicates an expected call of GetAll.
-func (mr *MockOrderRepositoryMockRecorder) GetAll(ctx, userId interface{}) *gomock.Call {
+func (mr *MockOrderRepositoryMockRecorder) GetAll(ctx, userID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockOrderRepository)(nil).GetAll), ctx, userId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockOrderRepository)(nil).GetAll), ctx, userID)
+}
+
+// GetForUpdate mocks base method.
+func (m *MockOrderRepository) GetForUpdate(ctx context.Context, limit, offset int, status ...model.OrderStatus) ([]*model.Order, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, limit, offset}
+	for _, a := range status {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetForUpdate", varargs...)
+	ret0, _ := ret[0].([]*model.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetForUpdate indicates an expected call of GetForUpdate.
+func (mr *MockOrderRepositoryMockRecorder) GetForUpdate(ctx, limit, offset interface{}, status ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, limit, offset}, status...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetForUpdate", reflect.TypeOf((*MockOrderRepository)(nil).GetForUpdate), varargs...)
 }
 
 // Insert mocks base method.
-func (m *MockOrderRepository) Insert(ctx context.Context, order *model.Order) (string, error) {
+func (m *MockOrderRepository) Insert(ctx context.Context, order *model.Order) (model.OrderID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Insert", ctx, order)
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].(model.OrderID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -78,4 +113,18 @@ func (m *MockOrderRepository) Insert(ctx context.Context, order *model.Order) (s
 func (mr *MockOrderRepositoryMockRecorder) Insert(ctx, order interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Insert", reflect.TypeOf((*MockOrderRepository)(nil).Insert), ctx, order)
+}
+
+// Update mocks base method.
+func (m *MockOrderRepository) Update(ctx context.Context, order *model.Order) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, order)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Update indicates an expected call of Update.
+func (mr *MockOrderRepositoryMockRecorder) Update(ctx, order interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockOrderRepository)(nil).Update), ctx, order)
 }

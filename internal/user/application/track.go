@@ -1,8 +1,7 @@
-package order
+package application
 
 import (
 	"context"
-	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
 	"github.com/DimKa163/gophermart/internal/user/infrastructure/external/accrual"
@@ -30,11 +29,11 @@ func NewTrackOrderHandler(uow uow.UnitOfWork, processor *TrackOrderProcessor) *T
 	return &TrackOrderHandler{uow: uow, processor: processor}
 }
 
-func (handler *TrackOrderHandler) Handle(ctx context.Context, command *TrackOrderCommand) (*types.AppResult[any], error) {
+func (handler *TrackOrderHandler) Handle(ctx context.Context, command *TrackOrderCommand) error {
 	var err error
 	txUow, err := handler.uow.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() {
 		if err != nil {
@@ -46,7 +45,7 @@ func (handler *TrackOrderHandler) Handle(ctx context.Context, command *TrackOrde
 	offset := 0
 	items, err := orderRep.GetForUpdate(ctx, command.Limit, offset, model.OrderStatusNEW, model.OrderStatusPROCESSING)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for len(items) > 0 {
 		ch := handler.processor.Process(ctx, items)
@@ -56,11 +55,11 @@ func (handler *TrackOrderHandler) Handle(ctx context.Context, command *TrackOrde
 		offset += command.Limit
 		items, err = orderRep.GetForUpdate(ctx, command.Limit, offset, model.OrderStatusNEW, model.OrderStatusPROCESSING)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	_ = txUow.Commit(ctx)
-	return &types.AppResult[any]{}, nil
+	return nil
 }
 
 type TrackOrderProcessor struct {

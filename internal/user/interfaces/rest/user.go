@@ -3,13 +3,8 @@ package rest
 import (
 	"errors"
 	"github.com/DimKa163/gophermart/internal/shared/logging"
-	"github.com/DimKa163/gophermart/internal/shared/mediatr"
-	"github.com/DimKa163/gophermart/internal/shared/types"
-	"github.com/DimKa163/gophermart/internal/user/application/balance"
-	"github.com/DimKa163/gophermart/internal/user/application/login"
-	"github.com/DimKa163/gophermart/internal/user/application/order"
-	"github.com/DimKa163/gophermart/internal/user/application/register"
-	"github.com/DimKa163/gophermart/internal/user/application/withdrawal"
+	"github.com/DimKa163/gophermart/internal/user/application"
+	"github.com/DimKa163/gophermart/internal/user/domain"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/interfaces/contracts"
 	"github.com/gin-gonic/gin"
@@ -28,10 +23,15 @@ type UserAPI interface {
 }
 
 type userAPI struct {
+	user  domain.UserService
+	order domain.OrderService
 }
 
-func NewUserAPI() UserAPI {
-	return &userAPI{}
+func NewUserAPI(user domain.UserService, order domain.OrderService) UserAPI {
+	return &userAPI{
+		user:  user,
+		order: order,
+	}
 }
 
 func (u *userAPI) Register(context *gin.Context) {
@@ -42,21 +42,18 @@ func (u *userAPI) Register(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	result, err := mediatr.Send[*register.RegisterCommand, *types.AppResult[string]](context,
-		&register.RegisterCommand{Login: user.Login, Password: user.Password})
+	result, err := u.user.Register(context, user.Login, user.Password)
 	if err != nil {
-		logger.Error("Unhandled error occurred", zap.Error(err))
+		if errors.Is(application.ErrLoginAlreadyExists, err) {
+			context.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		logger.Error("unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	switch result.Code {
-	case types.Created:
-		context.Header("Authorization", result.Payload)
-		context.Status(http.StatusOK)
-	case types.Duplicate:
-		logger.Error("Error occurred", zap.Error(result.Error))
-		context.JSON(http.StatusConflict, gin.H{"error": result.Error})
-	}
+	context.Header("Authorization", result)
+	context.Status(http.StatusOK)
 }
 
 func (u *userAPI) Login(context *gin.Context) {
@@ -67,21 +64,19 @@ func (u *userAPI) Login(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	result, err := mediatr.Send[*login.LoginCommand, *types.AppResult[string]](context,
-		&login.LoginCommand{Login: user.Login, Password: user.Password})
+
+	result, err := u.user.Login(context, user.Login, user.Password)
 	if err != nil {
-		logger.Error("Unhandled error occurred", zap.Error(err))
+		if errors.Is(application.ErrUserNotFound, err) {
+			context.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
+		logger.Error("unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	switch result.Code {
-	case types.Created:
-		context.Header("Authorization", result.Payload)
-		context.Status(http.StatusOK)
-	case types.Problem:
-		logger.Error("Error occurred", zap.Error(err))
-		context.JSON(http.StatusUnauthorized, gin.H{"error": result.Error.Error()})
-	}
+	context.Header("Authorization", result)
+	context.Status(http.StatusOK)
 }
 
 func (u *userAPI) Upload(context *gin.Context) {
@@ -92,68 +87,60 @@ func (u *userAPI) Upload(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	result, err := mediatr.Send[*order.UploadOrderCommand, *types.AppResult[any]](context,
-		&order.UploadOrderCommand{ID: string(body)})
+	result, err := u.order.Upload(context, string(body))
 	if err != nil {
-		logger.Error("Unhandled error occurred", zap.Error(err))
+		if errors.Is(model.ErrOrderID, err) {
+			context.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+			return
+		}
+		if errors.Is(application.ErrOrderExistsWithAnotherUser, err) {
+			context.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		logger.Error("unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	switch result.Code {
-	case types.Created:
-		context.Status(http.StatusAccepted)
-	case types.NoChange:
+	if !result {
 		context.Status(http.StatusOK)
-	case types.Problem:
-		logger.Error("Error occurred", zap.Error(result.Error))
-		context.JSON(http.StatusUnprocessableEntity, gin.H{"error": result.Error})
-	case types.Duplicate:
-		logger.Error("Error occurred", zap.Error(result.Error))
-		context.JSON(http.StatusConflict, gin.H{"error": result.Error})
+		return
 	}
+	context.Status(http.StatusAccepted)
 }
 
 func (u *userAPI) GetOrders(context *gin.Context) {
 	logger := logging.Logger(context)
-	result, err := mediatr.Send[*order.OrderQuery, *types.AppResult[[]*model.Order]](context,
-		&order.OrderQuery{})
+	result, err := u.order.List(context)
 	if err != nil {
 		logger.Error("unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	switch result.Code {
-	case types.NoChange:
-		if len(result.Payload) == 0 {
-			context.Status(http.StatusNoContent)
-			return
-		}
-		orderItems := make([]contracts.OrderItem, len(result.Payload))
-		for i, item := range result.Payload {
-			orderItems[i] = contracts.OrderItem{
-				Number:     item.OrderID.String(),
-				Accrual:    item.Accrual,
-				Status:     item.Status.String(),
-				UploadedAt: item.UploadedAt,
-			}
-		}
-		context.JSON(http.StatusOK, orderItems)
+	if len(result) == 0 {
+		context.Status(http.StatusNoContent)
+		return
 	}
+	orderItems := make([]contracts.OrderItem, len(result))
+	for i, item := range result {
+		orderItems[i] = contracts.OrderItem{
+			Number:     item.OrderID.String(),
+			Accrual:    item.Accrual,
+			Status:     item.Status.String(),
+			UploadedAt: item.UploadedAt,
+		}
+	}
+	context.JSON(http.StatusOK, orderItems)
 }
 
 func (u *userAPI) GetBalance(context *gin.Context) {
 	logger := logging.Logger(context)
-	result, err := mediatr.Send[*balance.BalanceQuery, *types.AppResult[*model.BonusBalance]](context,
-		&balance.BalanceQuery{})
+	result, err := u.user.Balance(context)
 	if err != nil {
 		logger.Error("unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	switch result.Code {
-	case types.NoChange:
-		context.JSON(http.StatusOK, contracts.BalanceResponse{Current: &result.Payload.Current, Withdrawn: &result.Payload.Withdrawn})
-	}
+	context.JSON(http.StatusOK, contracts.BalanceResponse{Current: &result.Current, Withdrawn: &result.Withdrawn})
 }
 
 func (u *userAPI) Withdraw(context *gin.Context) {
@@ -164,56 +151,42 @@ func (u *userAPI) Withdraw(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	result, err := mediatr.Send[*balance.WithdrawCommand, *types.AppResult[any]](context,
-		&balance.WithdrawCommand{
-			OrderID: body.OrderID,
-			Sum:     body.Sum,
-		})
+	err := u.order.Withdraw(context, body.OrderID, body.Sum)
 	if err != nil {
+		if errors.Is(model.ErrOrderID, err) {
+			context.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, application.ErrNegativeBalance) {
+			context.JSON(http.StatusPaymentRequired, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	switch result.Code {
-	case types.Created:
-		context.Status(http.StatusOK)
-		return
-	case types.Problem:
-		logger.Error("error occurred", zap.Error(result.Error))
-		if errors.Is(result.Error, balance.ErrNegativeBalance) {
-			context.JSON(http.StatusPaymentRequired, gin.H{"error": result.Error.Error()})
-			return
-		}
-		if errors.Is(result.Error, balance.ErrWrongOrder) {
-			context.JSON(http.StatusUnprocessableEntity, gin.H{"error": result.Error.Error()})
-			return
-		}
-	}
+	context.Status(http.StatusOK)
 }
 
 func (u *userAPI) GetWithdrawals(context *gin.Context) {
 	logger := logging.Logger(context)
-	result, err := mediatr.Send[*withdrawal.WithdrawalQuery, *types.AppResult[[]*model.Transaction]](context,
-		&withdrawal.WithdrawalQuery{})
+	result, err := u.user.Withdrawal(context)
 	if err != nil {
 		logger.Error("Unhandled error occurred", zap.Error(err))
 		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	switch result.Code {
-	case types.NoChange:
-		if len(result.Payload) == 0 {
-			context.Status(http.StatusNoContent)
-			return
-		}
-		response := make([]contracts.WithdrawResponse, len(result.Payload))
-		for i, item := range result.Payload {
-			response[i] = contracts.WithdrawResponse{
-				OrderID:     item.OrderID,
-				Sum:         item.Amount,
-				ProcessedAt: item.CreatedAt,
-			}
-		}
-		context.JSON(http.StatusOK, response)
+	if len(result) == 0 {
+		context.Status(http.StatusNoContent)
+		return
 	}
+	response := make([]contracts.WithdrawResponse, len(result))
+	for i, item := range result {
+		response[i] = contracts.WithdrawResponse{
+			OrderID:     item.OrderID,
+			Sum:         item.Amount,
+			ProcessedAt: item.CreatedAt,
+		}
+	}
+	context.JSON(http.StatusOK, response)
 }

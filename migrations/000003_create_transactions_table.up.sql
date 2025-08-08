@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS transactions
     type INT,
     amount DECIMAL(10, 2),
     order_id BIGSERIAL REFERENCES orders(id)
-    );
+);
 
 CREATE INDEX IF NOT EXISTS transactions_user_id_ix ON transactions(user_id ASC);
 

@@ -5,15 +5,8 @@ import (
 	"github.com/DimKa163/gophermart/internal/shared/auth"
 	"github.com/DimKa163/gophermart/internal/shared/db"
 	"github.com/DimKa163/gophermart/internal/shared/logging"
-	"github.com/DimKa163/gophermart/internal/shared/mediatr"
 	"github.com/DimKa163/gophermart/internal/shared/tripper"
-	"github.com/DimKa163/gophermart/internal/shared/types"
-	"github.com/DimKa163/gophermart/internal/user/application/balance"
-	"github.com/DimKa163/gophermart/internal/user/application/login"
-	"github.com/DimKa163/gophermart/internal/user/application/order"
-	"github.com/DimKa163/gophermart/internal/user/application/register"
-	"github.com/DimKa163/gophermart/internal/user/application/withdrawal"
-	"github.com/DimKa163/gophermart/internal/user/domain/model"
+	"github.com/DimKa163/gophermart/internal/user/application"
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
 	"github.com/DimKa163/gophermart/internal/user/infrastructure/external/accrual"
 	"github.com/DimKa163/gophermart/internal/user/infrastructure/persistence"
@@ -54,9 +47,7 @@ func New(conf Config) *Server {
 			Addr:    conf.Addr,
 			Handler: router.Handler(),
 		},
-		ServiceContainer: &ServiceContainer{
-			userAPI: rest.NewUserAPI(),
-		},
+		ServiceContainer: &ServiceContainer{},
 	}
 }
 
@@ -68,13 +59,13 @@ func (s *Server) AddServices() error {
 	}
 	s.authService = s.addAuthService()
 	s.unitOfWork = addUnitOfWork(s.pgPool)
+	s.userAPI = rest.NewUserAPI(application.NewUserService(s.unitOfWork, s.authService),
+		application.NewOrderService(s.unitOfWork))
 	accrualCl := addAccrualClient(s.Accrual)
-	s.crn = addCron()
-	s.worker, err = addCronWorker(s.crn, s.Schedule, 10)
-	if err != nil {
-		return err
-	}
-	err = addMediatr(s.unitOfWork, s.authService, accrualCl)
+	s.crn = cron.New(cron.WithSeconds(),
+		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
+	s.worker, err = worker.NewWorker(s.crn,
+		s.Schedule, 10, application.NewTrackOrderHandler(s.unitOfWork, application.NewTrackOrderProcessor(accrualCl)))
 	if err != nil {
 		return err
 	}
@@ -126,51 +117,6 @@ func (s *Server) Run() error {
 	return s.ListenAndServe()
 }
 
-func addMediatr(unitOfWork uow.UnitOfWork, authService auth.AuthService, accrualCl accrual.AccrualClient) error {
-	var err error
-	err = mediatr.Bind[*register.RegisterCommand,
-		*types.AppResult[string]](register.New(unitOfWork, authService))
-	if err != nil {
-		return err
-	}
-	err = mediatr.Bind[*login.LoginCommand,
-		*types.AppResult[string]](login.New(unitOfWork, authService))
-	if err != nil {
-		return err
-	}
-	err = mediatr.Bind[*order.UploadOrderCommand,
-		*types.AppResult[any]](order.NewUploadOrderHandler(unitOfWork))
-	if err != nil {
-		return err
-	}
-	err = mediatr.Bind[*order.OrderQuery,
-		*types.AppResult[[]*model.Order]](order.NewOrderQueryHandler(unitOfWork))
-	if err != nil {
-		return err
-	}
-	err = mediatr.Bind[*balance.BalanceQuery,
-		*types.AppResult[*model.BonusBalance]](balance.NewBalanceQueryHandler(unitOfWork))
-	if err != nil {
-		return err
-	}
-	err = mediatr.Bind[*balance.WithdrawCommand,
-		*types.AppResult[any]](balance.NewWithdrawHandler(unitOfWork))
-	if err != nil {
-		return err
-	}
-	err = mediatr.Bind[*withdrawal.WithdrawalQuery,
-		*types.AppResult[[]*model.Transaction]](withdrawal.NewWithdrawalQueryHandler(unitOfWork))
-	if err != nil {
-		return err
-	}
-	err = mediatr.Bind[*order.TrackOrderCommand,
-		*types.AppResult[any]](order.NewTrackOrderHandler(unitOfWork, order.NewTrackOrderProcessor(accrualCl)))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func addPgPool(database string) (*pgxpool.Pool, error) {
 	pg, err := pgxpool.New(context.Background(), database)
 	if err != nil {
@@ -202,18 +148,4 @@ func addAccrualClient(addr string) accrual.AccrualClient {
 		},
 	}
 	return accrual.New(addr, tripperFc)
-}
-
-func addCron() *cron.Cron {
-	return cron.New(cron.WithSeconds(),
-		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
-}
-
-func addCronWorker(crn *cron.Cron, schedule string, limit int) (*worker.OrderPooler, error) {
-	wrk, err := worker.NewWorker(crn,
-		schedule, limit)
-	if err != nil {
-		return nil, err
-	}
-	return wrk, nil
 }

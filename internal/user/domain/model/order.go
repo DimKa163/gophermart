@@ -56,7 +56,15 @@ func (o *Order) Transactions() []*Transaction {
 	return o.transactions
 }
 
-var ErrOrderID = errors.New("order code not valid")
+type OrderIDError struct {
+	Message string
+}
+
+func (e *OrderIDError) Error() string {
+	return e.Message
+}
+
+var ErrOrderID = errors.New("Order ID is invalid")
 
 var DefaultOrderID = OrderID{
 	Value: 0,
