@@ -3,9 +3,7 @@ package worker
 import (
 	"context"
 	"github.com/DimKa163/gophermart/internal/shared/logging"
-	"github.com/DimKa163/gophermart/internal/shared/mediatr"
-	"github.com/DimKa163/gophermart/internal/shared/types"
-	"github.com/DimKa163/gophermart/internal/user/application/order"
+	"github.com/DimKa163/gophermart/internal/user/application"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 )
@@ -13,11 +11,12 @@ import (
 type OrderPooler struct {
 	entryID  cron.EntryID
 	signal   chan struct{}
+	handler  *application.TrackOrderHandler
 	schedule string
 	limit    int
 }
 
-func NewWorker(cron *cron.Cron, schedule string, limit int) (*OrderPooler, error) {
+func NewWorker(cron *cron.Cron, schedule string, limit int, handler *application.TrackOrderHandler) (*OrderPooler, error) {
 	signal := make(chan struct{})
 	id, err := cron.AddFunc(schedule, func() {
 		signal <- struct{}{}
@@ -30,6 +29,7 @@ func NewWorker(cron *cron.Cron, schedule string, limit int) (*OrderPooler, error
 		signal:   signal,
 		schedule: schedule,
 		limit:    limit,
+		handler:  handler,
 	}, nil
 }
 
@@ -44,7 +44,7 @@ func (w *OrderPooler) Run(ctx context.Context) error {
 			case <-w.signal:
 				logger := logging.Logger(ctx)
 				logger.Info("start processing orders")
-				_, err := mediatr.Send[*order.TrackOrderCommand, *types.AppResult[any]](ctx, &order.TrackOrderCommand{
+				err := w.handler.Handle(ctx, &application.TrackOrderCommand{
 					Limit: 100,
 				})
 				if err != nil {

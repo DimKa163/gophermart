@@ -51,6 +51,34 @@ func (mr *MockUnitOfWorkMockRecorder) Begin(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Begin", reflect.TypeOf((*MockUnitOfWork)(nil).Begin), ctx)
 }
 
+// BonusBalanceRepository mocks base method.
+func (m *MockUnitOfWork) BonusBalanceRepository() repository.BonusBalanceRepository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BonusBalanceRepository")
+	ret0, _ := ret[0].(repository.BonusBalanceRepository)
+	return ret0
+}
+
+// BonusBalanceRepository indicates an expected call of BonusBalanceRepository.
+func (mr *MockUnitOfWorkMockRecorder) BonusBalanceRepository() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BonusBalanceRepository", reflect.TypeOf((*MockUnitOfWork)(nil).BonusBalanceRepository))
+}
+
+// BonusMovementRepository mocks base method.
+func (m *MockUnitOfWork) BonusMovementRepository() repository.TransactionRepository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BonusMovementRepository")
+	ret0, _ := ret[0].(repository.TransactionRepository)
+	return ret0
+}
+
+// BonusMovementRepository indicates an expected call of BonusMovementRepository.
+func (mr *MockUnitOfWorkMockRecorder) BonusMovementRepository() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BonusMovementRepository", reflect.TypeOf((*MockUnitOfWork)(nil).BonusMovementRepository))
+}
+
 // OrderRepository mocks base method.
 func (m *MockUnitOfWork) OrderRepository() repository.OrderRepository {
 	m.ctrl.T.Helper()
@@ -100,6 +128,34 @@ func NewMockTxUnitOfWork(ctrl *gomock.Controller) *MockTxUnitOfWork {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTxUnitOfWork) EXPECT() *MockTxUnitOfWorkMockRecorder {
 	return m.recorder
+}
+
+// BonusBalanceRepository mocks base method.
+func (m *MockTxUnitOfWork) BonusBalanceRepository() repository.BonusBalanceRepository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BonusBalanceRepository")
+	ret0, _ := ret[0].(repository.BonusBalanceRepository)
+	return ret0
+}
+
+// BonusBalanceRepository indicates an expected call of BonusBalanceRepository.
+func (mr *MockTxUnitOfWorkMockRecorder) BonusBalanceRepository() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BonusBalanceRepository", reflect.TypeOf((*MockTxUnitOfWork)(nil).BonusBalanceRepository))
+}
+
+// BonusMovementRepository mocks base method.
+func (m *MockTxUnitOfWork) BonusMovementRepository() repository.TransactionRepository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BonusMovementRepository")
+	ret0, _ := ret[0].(repository.TransactionRepository)
+	return ret0
+}
+
+// BonusMovementRepository indicates an expected call of BonusMovementRepository.
+func (mr *MockTxUnitOfWorkMockRecorder) BonusMovementRepository() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BonusMovementRepository", reflect.TypeOf((*MockTxUnitOfWork)(nil).BonusMovementRepository))
 }
 
 // Commit mocks base method.
