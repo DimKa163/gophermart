@@ -6,8 +6,8 @@ import (
 )
 
 type OrderItem struct {
-	Number     string         `json:"number"`
-	Status     string         `json:"status"`
-	Accrual    *types.Decimal `json:"accrual,omitempty"`
-	UploadedAt *time.Time     `json:"uploaded_at,omitempty"`
+	Number     string        `json:"number"`
+	Status     string        `json:"status"`
+	Accrual    types.Decimal `json:"accrual,omitempty"`
+	UploadedAt *time.Time    `json:"uploaded_at,omitempty"`
 }

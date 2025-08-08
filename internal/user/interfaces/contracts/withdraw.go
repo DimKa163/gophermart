@@ -7,7 +7,7 @@ import (
 )
 
 type WithdrawRequest struct {
-	OrderID model.OrderID `json:"order"`
+	OrderID string        `json:"order"`
 	Sum     types.Decimal `json:"sum"`
 }
 

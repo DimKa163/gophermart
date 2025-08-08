@@ -50,6 +50,21 @@ func (mr *MockUserRepositoryMockRecorder) Get(ctx, login interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockUserRepository)(nil).Get), ctx, login)
 }
 
+// GetBonusBalanceByUserID mocks base method.
+func (m *MockUserRepository) GetBonusBalanceByUserID(ctx context.Context, userID int64) (*model.BonusBalance, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBonusBalanceByUserID", ctx, userID)
+	ret0, _ := ret[0].(*model.BonusBalance)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBonusBalanceByUserID indicates an expected call of GetBonusBalanceByUserID.
+func (mr *MockUserRepositoryMockRecorder) GetBonusBalanceByUserID(ctx, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBonusBalanceByUserID", reflect.TypeOf((*MockUserRepository)(nil).GetBonusBalanceByUserID), ctx, userID)
+}
+
 // Insert mocks base method.
 func (m *MockUserRepository) Insert(ctx context.Context, user *model.User) (int64, error) {
 	m.ctrl.T.Helper()

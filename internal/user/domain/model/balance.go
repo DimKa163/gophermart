@@ -3,15 +3,14 @@ package model
 import (
 	"errors"
 	"github.com/DimKa163/gophermart/internal/shared/types"
-	"time"
 )
 
 var ErrBonusBalance = errors.New("invalid bonus balance")
 
 type BonusBalance struct {
 	UserID    int64
-	CreatedAt time.Time
 	Current   types.Decimal
+	Accrued   types.Decimal
 	Withdrawn types.Decimal
 }
 

@@ -24,14 +24,47 @@ func (s OrderStatus) String() string {
 }
 
 type Order struct {
-	OrderID    OrderID
-	UploadedAt *time.Time
-	Status     OrderStatus
-	UserID     int64
-	Accrual    *types.Decimal
+	OrderID      OrderID
+	UploadedAt   *time.Time
+	Status       OrderStatus
+	UserID       int64
+	Withdrawn    types.Decimal
+	Accrual      types.Decimal
+	transactions []*Transaction
+	Error        string
 }
 
-var ErrOrderID = errors.New("order code not valid")
+func (o *Order) AddTransaction(tt TransactionType, amount types.Decimal) {
+	if o.transactions == nil {
+		o.transactions = make([]*Transaction, 0)
+	}
+	o.transactions = append(o.transactions, &Transaction{
+		Amount:  amount,
+		Type:    tt,
+		UserID:  o.UserID,
+		OrderID: o.OrderID,
+	})
+	switch tt {
+	case ACCRUAL:
+		o.Accrual = o.Accrual.Add(amount)
+	case WITHDRAWAL:
+		o.Withdrawn = o.Withdrawn.Add(amount)
+	}
+}
+
+func (o *Order) Transactions() []*Transaction {
+	return o.transactions
+}
+
+type OrderIDError struct {
+	Message string
+}
+
+func (e *OrderIDError) Error() string {
+	return e.Message
+}
+
+var ErrOrderID = errors.New("Order ID is invalid")
 
 var DefaultOrderID = OrderID{
 	Value: 0,
@@ -50,7 +83,7 @@ func NewOrderID(value string) (OrderID, error) {
 }
 
 func (id *OrderID) MarshalJSON() ([]byte, error) {
-	return []byte(id.String()), nil
+	return []byte("\"" + id.String() + "\""), nil
 }
 
 func (id *OrderID) UnmarshalJSON(data []byte) error {
@@ -69,6 +102,10 @@ func (id *OrderID) UnmarshalJSON(data []byte) error {
 	id.Value = val
 	return nil
 }
+func (id *OrderID) String() string {
+	return strconv.FormatInt(id.Value, 10)
+}
+
 func validate(value string) error {
 	num := value
 	var sum int
@@ -92,8 +129,4 @@ func validate(value string) error {
 		return ErrOrderID
 	}
 	return nil
-}
-
-func (id *OrderID) String() string {
-	return strconv.FormatInt(id.Value, 10)
 }

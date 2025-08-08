@@ -26,7 +26,7 @@ func (u *unitOfWork) Begin(ctx context.Context) (uow.TxUnitOfWork, error) {
 func (u *unitOfWork) BonusBalanceRepository() repository.BonusBalanceRepository {
 	return NewBonusBalanceRepository(u.db)
 }
-func (u *unitOfWork) BonusMovementRepository() repository.BonusMovementRepository {
+func (u *unitOfWork) BonusMovementRepository() repository.TransactionRepository {
 	return NewBonusMovementRepository(u.db)
 }
 func (u *unitOfWork) UserRepository() repository.UserRepository {
