@@ -75,13 +75,16 @@ func (o *orderService) Withdraw(ctx context.Context, number string, sum types.De
 	}
 	orderRep := o.uow.OrderRepository()
 	ord, err := orderRep.Get(ctx, orderID)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil && errors.Is(err, pgx.ErrNoRows) {
 		if _, err = o.Upload(ctx, number); err != nil {
 			return err
 		}
 		if ord, err = orderRep.Get(ctx, orderID); err != nil {
 			return err
 		}
+	}
+	if err != nil {
+		return err
 	}
 	userRep := o.uow.UserRepository()
 	bal, err := userRep.GetBonusBalanceByUserID(ctx, userID)
