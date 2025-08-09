@@ -82,11 +82,11 @@ func NewOrderID(value string) (OrderID, error) {
 	return OrderID{Value: v}, nil
 }
 
-func (id *OrderID) MarshalJSON() ([]byte, error) {
+func (id OrderID) MarshalJSON() ([]byte, error) {
 	return []byte("\"" + id.String() + "\""), nil
 }
 
-func (id *OrderID) UnmarshalJSON(data []byte) error {
+func (id OrderID) UnmarshalJSON(data []byte) error {
 	var strVal string
 	if err := json.Unmarshal(data, &strVal); err != nil {
 		return fmt.Errorf("OrderID.UnmarshalJSON: %w", err)

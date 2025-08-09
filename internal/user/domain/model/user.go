@@ -15,10 +15,9 @@ type User struct {
 
 func NewUser(login string, password []byte, salt []byte) *User {
 	return &User{
-		CreatedAt: time.Now(),
-		Login:     login,
-		Password:  password,
-		Salt:      salt,
+		Login:    login,
+		Password: password,
+		Salt:     salt,
 	}
 }
 

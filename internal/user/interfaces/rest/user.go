@@ -80,19 +80,26 @@ func (u *userAPI) Login(context *gin.Context) {
 }
 
 func (u *userAPI) Upload(context *gin.Context) {
+
 	logger := logging.Logger(context)
-	body, err := context.GetRawData()
+	raw, err := context.GetRawData()
 	if err != nil {
 		logger.Error("Error reading body", zap.Error(err))
-		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	result, err := u.order.Upload(context, string(body))
+	orderID, err := model.NewOrderID(string(raw))
 	if err != nil {
+		logger.Error("Error reading body", zap.Error(err))
 		if errors.Is(err, model.ErrOrderID) {
 			context.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 			return
 		}
+		context.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := u.order.Upload(context, orderID)
+	if err != nil {
 		if errors.Is(err, application.ErrOrderExistsWithAnotherUser) {
 			context.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
@@ -148,15 +155,15 @@ func (u *userAPI) Withdraw(context *gin.Context) {
 	var body contracts.WithdrawRequest
 	if err := context.ShouldBind(&body); err != nil {
 		logger.Error("error reading body", zap.Error(err))
+		if errors.Is(err, model.ErrOrderID) {
+			context.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+			return
+		}
 		context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	err := u.order.Withdraw(context, body.OrderID, body.Sum)
 	if err != nil {
-		if errors.Is(err, model.ErrOrderID) {
-			context.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
-			return
-		}
 		if errors.Is(err, application.ErrNegativeBalance) {
 			context.JSON(http.StatusPaymentRequired, gin.H{"error": err.Error()})
 			return
