@@ -79,6 +79,7 @@ func (s *Server) AddLogging() error {
 func (s *Server) Map() {
 	s.Use(gin.Recovery())
 	s.Use(middleware.Logging())
+	s.Use(middleware.Gzip())
 	userGroup := s.Group("api/user")
 	{
 		userAPI := s.userAPI
