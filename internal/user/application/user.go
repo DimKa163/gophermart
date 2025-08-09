@@ -21,11 +21,6 @@ type userService struct {
 }
 
 func (u *userService) Register(ctx context.Context, login string, password string) (string, error) {
-	pwd, salt, err := u.auth.GenerateHash([]byte(password))
-	if err != nil {
-		return "", err
-	}
-	user := model.NewUser(login, pwd, salt)
 	userRep := u.uow.UserRepository()
 	loginExists, err := userRep.LoginExists(ctx, login)
 	if err != nil {
@@ -34,6 +29,12 @@ func (u *userService) Register(ctx context.Context, login string, password strin
 	if loginExists {
 		return "", ErrLoginAlreadyExists
 	}
+
+	pwd, salt, err := u.auth.GenerateHash([]byte(password))
+	if err != nil {
+		return "", err
+	}
+	user := model.NewUser(login, pwd, salt)
 	_, err = userRep.Insert(ctx, user)
 	if err != nil {
 		return "", err

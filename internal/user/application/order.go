@@ -20,11 +20,7 @@ type orderService struct {
 	uow uow.UnitOfWork
 }
 
-func (o *orderService) Upload(ctx context.Context, number string) (bool, error) {
-	orderID, err := model.NewOrderID(number)
-	if err != nil {
-		return false, err
-	}
+func (o *orderService) Upload(ctx context.Context, orderID model.OrderID) (bool, error) {
 	userID, err := auth.User(ctx)
 	if err != nil {
 		return false, err
@@ -64,25 +60,16 @@ func (o *orderService) List(ctx context.Context) ([]*model.Order, error) {
 	return orders, nil
 }
 
-func (o *orderService) Withdraw(ctx context.Context, number string, sum types.Decimal) error {
+func (o *orderService) Withdraw(ctx context.Context, orderID model.OrderID, sum types.Decimal) error {
 	userID, err := auth.User(ctx)
 	if err != nil {
 		return err
 	}
-	orderID, err := model.NewOrderID(number)
-	if err != nil {
+	if _, err = o.Upload(ctx, orderID); err != nil && !errors.Is(err, ErrOrderExistsWithAnotherUser) {
 		return err
 	}
 	orderRep := o.uow.OrderRepository()
 	ord, err := orderRep.Get(ctx, orderID)
-	if err != nil && errors.Is(err, pgx.ErrNoRows) {
-		if _, err = o.Upload(ctx, number); err != nil {
-			return err
-		}
-		if ord, err = orderRep.Get(ctx, orderID); err != nil {
-			return err
-		}
-	}
 	if err != nil {
 		return err
 	}

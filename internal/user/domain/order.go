@@ -7,9 +7,9 @@ import (
 )
 
 type OrderService interface {
-	Upload(ctx context.Context, number string) (bool, error)
+	Upload(ctx context.Context, number model.OrderID) (bool, error)
 
 	List(ctx context.Context) ([]*model.Order, error)
 
-	Withdraw(ctx context.Context, number string, decimal types.Decimal) error
+	Withdraw(ctx context.Context, number model.OrderID, decimal types.Decimal) error
 }
