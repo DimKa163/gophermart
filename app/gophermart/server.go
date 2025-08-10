@@ -65,7 +65,7 @@ func (s *Server) AddServices() error {
 	s.crn = cron.New(cron.WithSeconds(),
 		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)))
 	s.worker, err = worker.NewWorker(s.crn,
-		s.Schedule, 10, application.NewTrackOrderHandler(s.unitOfWork, application.NewTrackOrderProcessor(accrualCl)))
+		s.CronSchedule, 10, application.NewTrackOrderHandler(s.unitOfWork, application.NewTrackOrderProcessor(accrualCl)))
 	if err != nil {
 		return err
 	}
