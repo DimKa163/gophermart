@@ -49,7 +49,7 @@ func (a *argonAuthService) GenerateHash(password []byte) (pwd, salt []byte, err 
 
 func (a *argonAuthService) Authenticate(userID int64, password, hashedPassword, salt []byte) (string, error) {
 	candidateHash := a.hash(password, salt)
-	if !a.comapre(hashedPassword, candidateHash) {
+	if !a.compare(hashedPassword, candidateHash) {
 		return "", ErrInvalidPassword
 	}
 	return a.engine.BuildToken(userID)
@@ -64,7 +64,7 @@ func (a *argonAuthService) generateSalt() ([]byte, error) {
 	return salt, err
 }
 
-func (a *argonAuthService) comapre(b, c []byte) bool {
+func (a *argonAuthService) compare(b, c []byte) bool {
 	if len(b) != len(c) {
 		return false
 	}
