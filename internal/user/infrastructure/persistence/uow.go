@@ -5,49 +5,44 @@ import (
 	"github.com/DimKa163/gophermart/internal/shared/db"
 	"github.com/DimKa163/gophermart/internal/user/domain/repository"
 	"github.com/DimKa163/gophermart/internal/user/domain/uow"
+	"github.com/jackc/pgx/v5"
 )
 
 type unitOfWork struct {
-	db db.QueryExecutor
+	db            db.QueryExecutor
+	retryStrategy *db.RetryStrategy
+	attempts      []int
 }
 
-func (u *unitOfWork) Begin(ctx context.Context) (uow.TxUnitOfWork, error) {
-	tx, err := u.db.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &txUnitOfWork{
-		UnitOfWork: &unitOfWork{
-			db: tx,
-		},
-		db: tx,
-	}, nil
+func (u *unitOfWork) BeginTx(ctx context.Context, fn func(ctx context.Context, uow uow.UnitOfWork) error) error {
+	err := u.retryStrategy.BeginTx(ctx, u.db, func(ctx context.Context, tx pgx.Tx) error {
+		err := fn(ctx, NewUnitOfWork(tx, u.retryStrategy))
+		if err != nil {
+			_ = tx.Rollback(ctx)
+			return err
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
 }
 func (u *unitOfWork) BonusBalanceRepository() repository.BonusBalanceRepository {
-	return NewBonusBalanceRepository(u.db)
+	return NewBonusBalanceRepository(u.db, u.retryStrategy)
 }
 func (u *unitOfWork) BonusMovementRepository() repository.TransactionRepository {
-	return NewBonusMovementRepository(u.db)
+	return NewBonusMovementRepository(u.db, u.retryStrategy)
 }
 func (u *unitOfWork) UserRepository() repository.UserRepository {
-	return NewUserRepository(u.db)
+	return NewUserRepository(u.db, u.retryStrategy)
 }
-func (u *unitOfWork) OrderRepository() repository.OrderRepository { return NewOrderRepository(u.db) }
-func NewUnitOfWork(db db.QueryExecutor) uow.UnitOfWork {
+func (u *unitOfWork) OrderRepository() repository.OrderRepository {
+	return NewOrderRepository(u.db, u.retryStrategy)
+}
+func NewUnitOfWork(db db.QueryExecutor, retryStrategy *db.RetryStrategy) uow.UnitOfWork {
 	return &unitOfWork{
-		db: db,
+		db:            db,
+		retryStrategy: retryStrategy,
 	}
-}
-
-type txUnitOfWork struct {
-	uow.UnitOfWork
-	db db.TxQueryExecutor
-}
-
-func (u *txUnitOfWork) Commit(ctx context.Context) error {
-	return u.db.Commit(ctx)
-}
-
-func (u *txUnitOfWork) Rollback(ctx context.Context) error {
-	return u.db.Rollback(ctx)
 }

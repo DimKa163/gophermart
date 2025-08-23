@@ -10,14 +10,6 @@ type UnitOfWork interface {
 	OrderRepository() repository.OrderRepository
 	BonusBalanceRepository() repository.BonusBalanceRepository
 	BonusMovementRepository() repository.TransactionRepository
-	Begin(ctx context.Context) (TxUnitOfWork, error)
-}
 
-type TxUnitOfWork interface {
-	UserRepository() repository.UserRepository
-	OrderRepository() repository.OrderRepository
-	BonusBalanceRepository() repository.BonusBalanceRepository
-	BonusMovementRepository() repository.TransactionRepository
-	Commit(ctx context.Context) error
-	Rollback(ctx context.Context) error
+	BeginTx(ctx context.Context, fn func(ctx context.Context, uow UnitOfWork) error) error
 }

@@ -8,18 +8,22 @@ import (
 	"github.com/DimKa163/gophermart/internal/user/domain/repository"
 )
 
+const (
+	balanceGetSQL = `SELECT user_id, current, accrued, withdrawn FROM bonus_balances WHERE user_id = $1`
+)
+
 type bonusBalanceRepository struct {
 	db db.QueryExecutor
+	*db.RetryStrategy
 }
 
 func (b *bonusBalanceRepository) Get(ctx context.Context, userID int64) (*model.BonusBalance, error) {
-	sql := "SELECT user_id, current, accrued, withdrawn FROM bonus_balances WHERE user_id = $1"
 	var balance model.BonusBalance
 	var err error
 	var currentStr string
 	var accrued string
 	var withdrawnStr string
-	if err = b.db.QueryRow(ctx, sql, userID).Scan(&balance.UserID, &currentStr, &accrued, &withdrawnStr); err != nil {
+	if err = b.QueryRowWithRetry(ctx, b.db, balanceGetSQL, []any{userID}, &balance.UserID, &currentStr, &accrued, &withdrawnStr); err != nil {
 		return nil, err
 	}
 	balance.Current, err = types.NewDecimalFromString(currentStr)
@@ -37,8 +41,9 @@ func (b *bonusBalanceRepository) Get(ctx context.Context, userID int64) (*model.
 	return &balance, nil
 }
 
-func NewBonusBalanceRepository(db db.QueryExecutor) repository.BonusBalanceRepository {
+func NewBonusBalanceRepository(db db.QueryExecutor, retryStrategy *db.RetryStrategy) repository.BonusBalanceRepository {
 	return &bonusBalanceRepository{
-		db: db,
+		db:            db,
+		RetryStrategy: retryStrategy,
 	}
 }
