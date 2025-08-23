@@ -9,20 +9,23 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+const (
+	transactionAllGetByTypeSQL = `SELECT created_at, user_id, type, amount, order_id FROM transactions WHERE user_id = $1 AND type = $2`
+	transactionAllGetSQL       = `SELECT created_at, user_id, type, amount, order_id FROM transactions WHERE user_id = $1`
+)
+
 type bonusMovementRepository struct {
 	db db.QueryExecutor
+	*db.RetryStrategy
 }
 
 func (b bonusMovementRepository) GetAll(ctx context.Context, userID int64, tt *model.TransactionType) ([]*model.Transaction, error) {
-	var sql string
 	var rows pgx.Rows
 	var err error
 	if tt != nil {
-		sql = "SELECT created_at, user_id, type, amount, order_id FROM transactions WHERE user_id = $1 AND type = $2"
-		rows, err = b.db.Query(ctx, sql, userID, *tt)
+		rows, err = b.QueryWithRetry(ctx, b.db, transactionAllGetByTypeSQL, userID, *tt)
 	} else {
-		sql = "SELECT created_at, user_id, type, amount, order_id FROM transactions WHERE user_id = $1"
-		rows, err = b.db.Query(ctx, sql, userID)
+		rows, err = b.QueryWithRetry(ctx, b.db, transactionAllGetSQL, userID)
 	}
 
 	if err != nil {
@@ -49,8 +52,9 @@ func (b bonusMovementRepository) GetAll(ctx context.Context, userID int64, tt *m
 	return transactions, nil
 }
 
-func NewBonusMovementRepository(db db.QueryExecutor) repository.TransactionRepository {
+func NewBonusMovementRepository(db db.QueryExecutor, retryStrategy *db.RetryStrategy) repository.TransactionRepository {
 	return &bonusMovementRepository{
-		db: db,
+		db:            db,
+		RetryStrategy: retryStrategy,
 	}
 }

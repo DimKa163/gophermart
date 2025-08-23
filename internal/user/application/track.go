@@ -21,45 +21,38 @@ type TrackOrderCommand struct {
 }
 
 type TrackOrderHandler struct {
-	uow       uow.UnitOfWork
-	processor *TrackOrderProcessor
+	uow uow.UnitOfWork
+	*TrackOrderProcessor
 }
 
 func NewTrackOrderHandler(uow uow.UnitOfWork, processor *TrackOrderProcessor) *TrackOrderHandler {
-	return &TrackOrderHandler{uow: uow, processor: processor}
+	return &TrackOrderHandler{uow: uow, TrackOrderProcessor: processor}
 }
 
 func (handler *TrackOrderHandler) Handle(ctx context.Context, command *TrackOrderCommand) error {
-	var err error
-	txUow, err := handler.uow.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			_ = txUow.Rollback(ctx)
-			return
-		}
-	}()
-	orderRep := txUow.OrderRepository()
-	offset := 0
-	items, err := orderRep.GetForUpdate(ctx, command.Limit, offset, model.OrderStatusNEW, model.OrderStatusPROCESSING)
-	if err != nil {
-		return err
-	}
-	for len(items) > 0 {
-		ch := handler.processor.Process(ctx, items)
-		for it := range ch {
-			err = orderRep.Update(ctx, it)
-		}
-		offset += command.Limit
-		items, err = orderRep.GetForUpdate(ctx, command.Limit, offset, model.OrderStatusNEW, model.OrderStatusPROCESSING)
+	return handler.uow.BeginTx(ctx, func(ctx context.Context, uow uow.UnitOfWork) error {
+		orderRep := uow.OrderRepository()
+		offset := 0
+		items, err := orderRep.GetForUpdate(ctx, command.Limit, offset, model.OrderStatusNEW, model.OrderStatusPROCESSING)
 		if err != nil {
 			return err
 		}
-	}
-	_ = txUow.Commit(ctx)
-	return nil
+		for len(items) > 0 {
+			ch := handler.Process(ctx, items)
+			for it := range ch {
+				err = orderRep.Update(ctx, it)
+				if err != nil {
+					return err
+				}
+			}
+			offset += command.Limit
+			items, err = orderRep.GetForUpdate(ctx, command.Limit, offset, model.OrderStatusNEW, model.OrderStatusPROCESSING)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 type TrackOrderProcessor struct {

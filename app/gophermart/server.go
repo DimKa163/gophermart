@@ -53,12 +53,13 @@ func New(conf Config) *Server {
 
 func (s *Server) AddServices() error {
 	var err error
+	attempts := []int{1, 3, 5}
 	s.pgPool, err = addPgPool(s.Database)
 	if err != nil {
 		return err
 	}
 	s.authService = s.addAuthService()
-	s.unitOfWork = addUnitOfWork(s.pgPool)
+	s.unitOfWork = addUnitOfWork(s.pgPool, attempts)
 	s.userAPI = rest.NewUserAPI(application.NewUserService(s.unitOfWork, s.authService),
 		application.NewOrderService(s.unitOfWork))
 	accrualCl := addAccrualClient(s.Accrual)
@@ -135,8 +136,8 @@ func (s *Server) addAuthService() auth.AuthService {
 	return s.authService
 }
 
-func addUnitOfWork(db db.QueryExecutor) uow.UnitOfWork {
-	return persistence.NewUnitOfWork(db)
+func addUnitOfWork(qe db.QueryExecutor, attempts []int) uow.UnitOfWork {
+	return persistence.NewUnitOfWork(qe, db.NewRetryStrategy(attempts))
 }
 
 func addAccrualClient(addr string) accrual.AccrualClient {

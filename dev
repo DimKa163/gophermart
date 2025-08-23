@@ -1,6 +1,6 @@
 mockgen -source=I:\Goland\gophermart\internal\user\domain\repository\order.go -destination=I:\Goland\gophermart\internal\user\mocks\mock_order_repository.go -package=mocks OrderRepository
 mockgen -source=I:\Goland\gophermart\internal\user\domain\repository\user.go -destination=I:\Goland\gophermart\internal\user\mocks\mock_user_repository.go -package=mocks UserRepository
-mockgen -source=I:\Goland\gophermart\internal\user\domain\uow\uow.go -destination=I:\Goland\gophermart\internal\user\mocks\mock_uow.go -package=mocks UnitOfWork,TxUnitOfWork
+mockgen -source=I:\Goland\gophermart\internal\user\domain\uow\uow.go -destination=I:\Goland\gophermart\internal\user\mocks\mock_uow.go -package=mocks UnitOfWork
 mockgen -source=I:\Goland\gophermart\internal\shared\auth\service.go -destination=I:\Goland\gophermart\internal\user\mocks\mock_auth_service.go -package=mocks AuthService
 
 migrate create -ext sql -dir migrations -seq create_{}_table

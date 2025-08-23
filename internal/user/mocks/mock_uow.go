@@ -36,19 +36,18 @@ func (m *MockUnitOfWork) EXPECT() *MockUnitOfWorkMockRecorder {
 	return m.recorder
 }
 
-// Begin mocks base method.
-func (m *MockUnitOfWork) Begin(ctx context.Context) (uow.TxUnitOfWork, error) {
+// BeginTx mocks base method.
+func (m *MockUnitOfWork) BeginTx(ctx context.Context, fn func(context.Context, uow.UnitOfWork) error) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Begin", ctx)
-	ret0, _ := ret[0].(uow.TxUnitOfWork)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "BeginTx", ctx, fn)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// Begin indicates an expected call of Begin.
-func (mr *MockUnitOfWorkMockRecorder) Begin(ctx interface{}) *gomock.Call {
+// BeginTx indicates an expected call of BeginTx.
+func (mr *MockUnitOfWorkMockRecorder) BeginTx(ctx, fn interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Begin", reflect.TypeOf((*MockUnitOfWork)(nil).Begin), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginTx", reflect.TypeOf((*MockUnitOfWork)(nil).BeginTx), ctx, fn)
 }
 
 // BonusBalanceRepository mocks base method.
@@ -105,111 +104,4 @@ func (m *MockUnitOfWork) UserRepository() repository.UserRepository {
 func (mr *MockUnitOfWorkMockRecorder) UserRepository() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserRepository", reflect.TypeOf((*MockUnitOfWork)(nil).UserRepository))
-}
-
-// MockTxUnitOfWork is a mock of TxUnitOfWork interface.
-type MockTxUnitOfWork struct {
-	ctrl     *gomock.Controller
-	recorder *MockTxUnitOfWorkMockRecorder
-}
-
-// MockTxUnitOfWorkMockRecorder is the mock recorder for MockTxUnitOfWork.
-type MockTxUnitOfWorkMockRecorder struct {
-	mock *MockTxUnitOfWork
-}
-
-// NewMockTxUnitOfWork creates a new mock instance.
-func NewMockTxUnitOfWork(ctrl *gomock.Controller) *MockTxUnitOfWork {
-	mock := &MockTxUnitOfWork{ctrl: ctrl}
-	mock.recorder = &MockTxUnitOfWorkMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockTxUnitOfWork) EXPECT() *MockTxUnitOfWorkMockRecorder {
-	return m.recorder
-}
-
-// BonusBalanceRepository mocks base method.
-func (m *MockTxUnitOfWork) BonusBalanceRepository() repository.BonusBalanceRepository {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BonusBalanceRepository")
-	ret0, _ := ret[0].(repository.BonusBalanceRepository)
-	return ret0
-}
-
-// BonusBalanceRepository indicates an expected call of BonusBalanceRepository.
-func (mr *MockTxUnitOfWorkMockRecorder) BonusBalanceRepository() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BonusBalanceRepository", reflect.TypeOf((*MockTxUnitOfWork)(nil).BonusBalanceRepository))
-}
-
-// BonusMovementRepository mocks base method.
-func (m *MockTxUnitOfWork) BonusMovementRepository() repository.TransactionRepository {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BonusMovementRepository")
-	ret0, _ := ret[0].(repository.TransactionRepository)
-	return ret0
-}
-
-// BonusMovementRepository indicates an expected call of BonusMovementRepository.
-func (mr *MockTxUnitOfWorkMockRecorder) BonusMovementRepository() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BonusMovementRepository", reflect.TypeOf((*MockTxUnitOfWork)(nil).BonusMovementRepository))
-}
-
-// Commit mocks base method.
-func (m *MockTxUnitOfWork) Commit(ctx context.Context) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Commit", ctx)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Commit indicates an expected call of Commit.
-func (mr *MockTxUnitOfWorkMockRecorder) Commit(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockTxUnitOfWork)(nil).Commit), ctx)
-}
-
-// OrderRepository mocks base method.
-func (m *MockTxUnitOfWork) OrderRepository() repository.OrderRepository {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OrderRepository")
-	ret0, _ := ret[0].(repository.OrderRepository)
-	return ret0
-}
-
-// OrderRepository indicates an expected call of OrderRepository.
-func (mr *MockTxUnitOfWorkMockRecorder) OrderRepository() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OrderRepository", reflect.TypeOf((*MockTxUnitOfWork)(nil).OrderRepository))
-}
-
-// Rollback mocks base method.
-func (m *MockTxUnitOfWork) Rollback(ctx context.Context) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Rollback", ctx)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Rollback indicates an expected call of Rollback.
-func (mr *MockTxUnitOfWorkMockRecorder) Rollback(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockTxUnitOfWork)(nil).Rollback), ctx)
-}
-
-// UserRepository mocks base method.
-func (m *MockTxUnitOfWork) UserRepository() repository.UserRepository {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UserRepository")
-	ret0, _ := ret[0].(repository.UserRepository)
-	return ret0
-}
-
-// UserRepository indicates an expected call of UserRepository.
-func (mr *MockTxUnitOfWorkMockRecorder) UserRepository() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UserRepository", reflect.TypeOf((*MockTxUnitOfWork)(nil).UserRepository))
 }
