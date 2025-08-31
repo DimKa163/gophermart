@@ -6,30 +6,57 @@ import (
 	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/domain/repository"
+	"github.com/jackc/pgx/v5/pgconn"
 	"time"
+)
+
+const (
+	orderExistsSQL       = "SELECT COUNT(*) FROM orders WHERE id = $1"
+	updateOrderSQL       = "UPDATE orders SET status=$1, accrual=$2 WHERE id=$3"
+	insertTransactionSQL = `INSERT INTO transactions (created_at, user_id, type, amount, order_id) 
+								VALUES ($1, $2, $3, $4, $5)`
+	selectOrderForUpdateSQL = `SELECT id, uploaded_at, user_id, status, accrual 
+									FROM orders WHERE status=ANY($1) ORDER BY uploaded_at 
+									LIMIT $2 OFFSET $3 FOR UPDATE SKIP LOCKED`
+	getOrderSQL = `SELECT id, uploaded_at, user_id, status, accrual FROM orders WHERE id=$1`
+
+	getAllOrdersSQL = `SELECT id, uploaded_at, user_id, status, accrual FROM orders WHERE user_id=$1`
+
+	insertOrderSQL = `INSERT INTO orders (id, uploaded_at, user_id, status) VALUES ($1, $2, $3, $4) RETURNING id`
 )
 
 type orderRepository struct {
 	db db.QueryExecutor
+	*db.RetryStrategy
 }
 
 func (o *orderRepository) Exists(ctx context.Context, id model.OrderID) (bool, error) {
-	sql := "SELECT COUNT(*) FROM orders WHERE id = $1"
 	var count int
-	if err := o.db.QueryRow(ctx, sql, id.Value).Scan(&count); err != nil {
+	if err := o.QueryRowWithRetry(ctx, o.db, orderExistsSQL, []any{id.Value}, &count); err != nil {
 		return false, err
 	}
 	return count > 0, nil
 }
 
 func (o *orderRepository) Update(ctx context.Context, order *model.Order) error {
-	sql := "UPDATE orders SET status=$1, accrual=$2 WHERE id=$3"
-	if _, err := o.db.Exec(ctx, sql, order.Status, &order.Accrual, order.OrderID.Value); err != nil {
+	if _, err := o.ExecWithRetry(ctx, func(ctx context.Context) (pgconn.CommandTag, error) {
+		tg, err := o.db.Exec(ctx, updateOrderSQL, order.Status, &order.Accrual, order.OrderID.Value)
+		if err != nil {
+			return pgconn.CommandTag{}, err
+		}
+		return tg, nil
+	}); err != nil {
 		return err
 	}
-	trSQL := "INSERT INTO transactions (created_at, user_id, type, amount, order_id) VALUES ($1, $2, $3, $4, $5)"
+
 	for _, tr := range order.Transactions() {
-		if _, err := o.db.Exec(ctx, trSQL, time.Now(), tr.UserID, tr.Type, tr.Amount, tr.OrderID.Value); err != nil {
+		if _, err := o.ExecWithRetry(ctx, func(ctx context.Context) (pgconn.CommandTag, error) {
+			tg, err := o.db.Exec(ctx, insertTransactionSQL, time.Now(), tr.UserID, tr.Type, tr.Amount, tr.OrderID.Value)
+			if err != nil {
+				return pgconn.CommandTag{}, err
+			}
+			return tg, nil
+		}); err != nil {
 			return err
 		}
 	}
@@ -37,10 +64,8 @@ func (o *orderRepository) Update(ctx context.Context, order *model.Order) error 
 }
 
 func (o *orderRepository) GetForUpdate(ctx context.Context, limit, offset int, status ...model.OrderStatus) ([]*model.Order, error) {
-	sql := "SELECT id, uploaded_at, user_id, status, accrual " +
-		"FROM orders WHERE status=ANY($1) ORDER BY uploaded_at LIMIT $2 OFFSET $3 FOR UPDATE SKIP LOCKED"
 	var orders []*model.Order
-	rows, err := o.db.Query(ctx, sql, status, limit, offset)
+	rows, err := o.QueryWithRetry(ctx, o.db, selectOrderForUpdateSQL, status, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -68,11 +93,15 @@ func (o *orderRepository) GetForUpdate(ctx context.Context, limit, offset int, s
 }
 
 func (o *orderRepository) Get(ctx context.Context, id model.OrderID) (*model.Order, error) {
-	sql := "SELECT id, uploaded_at, user_id, status, accrual FROM orders WHERE id=$1"
 	var order model.Order
 	var orderID int64
 	var accrual *string
-	if err := o.db.QueryRow(ctx, sql, id.Value).Scan(&orderID, &order.UploadedAt, &order.UserID, &order.Status, &accrual); err != nil {
+	if err := o.QueryRowWithRetry(ctx, o.db, getOrderSQL, []any{id.Value},
+		&orderID,
+		&order.UploadedAt,
+		&order.UserID,
+		&order.Status,
+		&accrual); err != nil {
 		return nil, err
 	}
 	var acc types.Decimal
@@ -89,9 +118,8 @@ func (o *orderRepository) Get(ctx context.Context, id model.OrderID) (*model.Ord
 }
 
 func (o *orderRepository) GetAll(ctx context.Context, userID int64) ([]*model.Order, error) {
-	sql := "SELECT id, uploaded_at, user_id, status, accrual FROM orders WHERE user_id=$1"
 	var orders []*model.Order
-	rows, err := o.db.Query(ctx, sql, userID)
+	rows, err := o.QueryWithRetry(ctx, o.db, getAllOrdersSQL, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -119,15 +147,17 @@ func (o *orderRepository) GetAll(ctx context.Context, userID int64) ([]*model.Or
 }
 
 func (o *orderRepository) Insert(ctx context.Context, order *model.Order) (model.OrderID, error) {
-	sql := "INSERT INTO orders (id, uploaded_at, user_id, status) VALUES ($1, $2, $3, $4) RETURNING id"
 	var id string
-	if err := o.db.QueryRow(ctx, sql, order.OrderID.Value, time.Now(), order.UserID, order.Status).Scan(&id); err != nil {
+	if err := o.QueryRowWithRetry(ctx, o.db, insertOrderSQL, []any{order.OrderID.Value, time.Now(), order.UserID, order.Status}, &id); err != nil {
 		return model.DefaultOrderID, err
 	}
 	orderID, _ := model.NewOrderID(id)
 	return orderID, nil
 }
 
-func NewOrderRepository(db db.QueryExecutor) repository.OrderRepository {
-	return &orderRepository{db}
+func NewOrderRepository(db db.QueryExecutor, retryStrategy *db.RetryStrategy) repository.OrderRepository {
+	return &orderRepository{
+		db:            db,
+		RetryStrategy: retryStrategy,
+	}
 }

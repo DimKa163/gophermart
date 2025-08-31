@@ -2,26 +2,35 @@ package persistence
 
 import (
 	"context"
-	"errors"
 	"github.com/DimKa163/gophermart/internal/shared/db"
 	"github.com/DimKa163/gophermart/internal/shared/types"
 	"github.com/DimKa163/gophermart/internal/user/domain/model"
 	"github.com/DimKa163/gophermart/internal/user/domain/repository"
-	"github.com/jackc/pgx/v5"
+)
+
+const (
+	userBalanceSQL = "SELECT user_id, current, accrued, withdrawn FROM bonus_balances WHERE user_id = $1"
+	userGetSQL     = "SELECT id, created_at, login, password, salt FROM users WHERE login = $1"
+	insertUserSQL  = `INSERT INTO users (created_at, login, password, salt) VALUES ($1, $2, $3, $4) RETURNING id`
+	userCountSQL   = `SELECT COUNT(id) FROM users WHERE login = $1`
 )
 
 type userRepository struct {
 	db db.QueryExecutor
+	*db.RetryStrategy
 }
 
 func (u *userRepository) GetBonusBalanceByUserID(ctx context.Context, userID int64) (*model.BonusBalance, error) {
-	sql := "SELECT user_id, current, accrued, withdrawn FROM bonus_balances WHERE user_id = $1"
 	var balance model.BonusBalance
 	var err error
 	var currentStr string
 	var accrued string
 	var withdrawnStr string
-	if err = u.db.QueryRow(ctx, sql, userID).Scan(&balance.UserID, &currentStr, &accrued, &withdrawnStr); err != nil {
+	if err = u.QueryRowWithRetry(ctx, u.db, userBalanceSQL, []any{userID},
+		&balance.UserID,
+		&currentStr,
+		&accrued,
+		&withdrawnStr); err != nil {
 		return nil, err
 	}
 	balance.Current, err = types.NewDecimalFromString(currentStr)
@@ -39,33 +48,26 @@ func (u *userRepository) GetBonusBalanceByUserID(ctx context.Context, userID int
 	return &balance, nil
 }
 func (u *userRepository) Get(ctx context.Context, login string) (*model.User, error) {
-	sql := "SELECT id, created_at, login, password, salt FROM users WHERE login = $1"
 	var entity model.User
-	if err := u.db.QueryRow(ctx, sql, login).Scan(
+	if err := u.QueryRowWithRetry(ctx, u.db, userGetSQL, []any{login},
 		&entity.ID,
 		&entity.CreatedAt,
 		&entity.Login,
 		&entity.Password,
-		&entity.Salt,
-	); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, err
-		}
+		&entity.Salt); err != nil {
+		return nil, err
 	}
 	return &entity, nil
 }
 
 func (u *userRepository) Insert(ctx context.Context, user *model.User) (int64, error) {
-	sql := "INSERT INTO users (created_at, login, password, salt) VALUES ($1, $2, $3, $4) RETURNING id"
 	var id int64
-	if err := u.db.QueryRow(
-		ctx,
-		sql,
+	if err := u.QueryRowWithRetry(ctx, u.db, insertUserSQL, []any{
 		user.CreatedAt,
 		user.Login,
 		user.Password,
 		user.Salt,
-	).Scan(&id); err != nil {
+	}, &id); err != nil {
 		return -1, err
 	}
 	return id, nil
@@ -73,13 +75,15 @@ func (u *userRepository) Insert(ctx context.Context, user *model.User) (int64, e
 
 func (u *userRepository) LoginExists(ctx context.Context, login string) (bool, error) {
 	var count int64
-	sql := "SELECT COUNT(id) FROM users WHERE login = $1"
-	if err := u.db.QueryRow(ctx, sql, login).Scan(&count); err != nil {
+	if err := u.db.QueryRow(ctx, userCountSQL, login).Scan(&count); err != nil {
 		return false, err
 	}
 	return count > 0, nil
 }
 
-func NewUserRepository(db db.QueryExecutor) repository.UserRepository {
-	return &userRepository{db}
+func NewUserRepository(db db.QueryExecutor, retryStrategy *db.RetryStrategy) repository.UserRepository {
+	return &userRepository{
+		db:            db,
+		RetryStrategy: retryStrategy,
+	}
 }
